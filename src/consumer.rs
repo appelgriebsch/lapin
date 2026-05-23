@@ -5,11 +5,11 @@ use crate::{
     consumer_status::ConsumerStatus,
     error_holder::ErrorHolder,
     internal_rpc::InternalRPCHandle,
+    listener::Listener,
     message::{Delivery, DeliveryResult},
     options::BasicConsumeOptions,
     types::{ChannelId, PayloadSize},
     types::{FieldTable, ShortString},
-    wakers::Wakers,
 };
 use flume::{Receiver, Sender};
 use futures_core::stream::Stream;
@@ -155,7 +155,7 @@ pub struct Consumer {
     options: BasicConsumeOptions,
     arguments: FieldTable,
     deliveries_in: Sender<DeliveryResult>,
-    wakers: Wakers,
+    listener: Listener,
     error: ErrorHolder,
 }
 
@@ -185,7 +185,7 @@ impl Consumer {
             options,
             arguments,
             deliveries_in: sender,
-            wakers: Wakers::default(),
+            listener: Listener::default(),
             error: ErrorHolder::default(),
         }
     }
@@ -307,6 +307,12 @@ impl Consumer {
         self.inner.lock().unwrap_or_else(|e| e.into_inner())
     }
 
+    fn next_delivery(&self) -> Option<DeliveryResult> {
+        let mut inner = self.lock_inner();
+        trace!(consumer_tag=%inner.tag, "consumer poll; acquired inner lock");
+        inner.next_delivery()
+    }
+
     fn check_new_delivery(&self, delivery: Option<Delivery>) {
         if let Some(delivery) = delivery {
             self.dispatch(
@@ -329,7 +335,7 @@ impl Consumer {
         } else if let Err(err) = self.deliveries_in.send(delivery) {
             error!(?err, error);
         }
-        self.wakers.wake();
+        self.listener.notify();
     }
 }
 
@@ -434,33 +440,36 @@ impl Inner {
 impl Stream for Consumer {
     type Item = Result<Delivery>;
 
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         trace!("consumer poll_next");
-        self.wakers.register(cx.waker());
-        let mut inner = self.lock_inner();
-        trace!(
-            consumer_tag=%inner.tag,
-            "consumer poll; acquired inner lock"
-        );
-        if let Some(delivery) = inner.next_delivery() {
-            match delivery {
-                Ok(Some(delivery)) => {
-                    trace!(
-                        consumer_tag=%inner.tag,
-                        delivery_tag=?delivery.delivery_tag,
-                        "delivery"
-                    );
-                    Poll::Ready(Some(Ok(delivery)))
-                }
-                Ok(None) => {
-                    trace!(consumer_tag=%inner.tag, "consumer canceled");
-                    Poll::Ready(None)
-                }
-                Err(error) => Poll::Ready(Some(Err(error))),
+        loop {
+            self.listener.arm();
+            let delivery = self.next_delivery();
+            if delivery.is_none() {
+                trace!(consumer_tag=%self.consumer_tag, "delivery; status=NotReady");
             }
-        } else {
-            trace!(consumer_tag=%inner.tag, "delivery; status=NotReady");
-            Poll::Pending
+            if let Some(delivery) = delivery {
+                self.listener.disarm();
+                return match delivery {
+                    Ok(Some(delivery)) => {
+                        trace!(
+                            consumer_tag=%self.consumer_tag,
+                            delivery_tag=?delivery.delivery_tag,
+                            "delivery"
+                        );
+                        Poll::Ready(Some(Ok(delivery)))
+                    }
+                    Ok(None) => {
+                        trace!(consumer_tag=%self.consumer_tag, "consumer canceled");
+                        Poll::Ready(None)
+                    }
+                    Err(error) => Poll::Ready(Some(Err(error))),
+                };
+            }
+            match self.listener.poll(cx) {
+                Poll::Ready(()) => {}
+                Poll::Pending => return Poll::Pending,
+            }
         }
     }
 }

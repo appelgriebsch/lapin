@@ -1383,6 +1383,7 @@ dependencies = [
  "atomic-waker",
  "backon",
  "cfg-if",
+ "event-listener",
  "flume",
  "futures-core",
  "futures-io",

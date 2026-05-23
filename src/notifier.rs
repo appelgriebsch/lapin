@@ -1,5 +1,4 @@
-use crate::wakers::Wakers;
-
+use crate::listener::Listener;
 use std::{
     fmt,
     future::Future,
@@ -11,16 +10,17 @@ use std::{
     task::{Context, Poll},
 };
 
-#[derive(Default, Clone)]
+/// One-shot notifier: cloneable future that resolves once `notify_all` is called.
+#[derive(Clone, Default)]
 pub(crate) struct Notifier {
     done: Arc<AtomicBool>,
-    wakers: Wakers,
+    listener: Listener,
 }
 
 impl Notifier {
     pub(crate) fn notify_all(&self) {
         self.done.store(true, Ordering::Release);
-        self.wakers.wake();
+        self.listener.notify();
     }
 
     fn ready(&self) -> bool {
@@ -31,18 +31,16 @@ impl Notifier {
 impl Future for Notifier {
     type Output = ();
 
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         if self.ready() {
             return Poll::Ready(());
         }
-        self.wakers.register(cx.waker());
-        // Re-check after registering to close the lost-wakeup window between the
-        // first check and the waker registration.
+        self.listener.arm();
+        // Re-check after registering listener to close the lost-wakeup window.
         if self.ready() {
-            Poll::Ready(())
-        } else {
-            Poll::Pending
+            return Poll::Ready(());
         }
+        self.listener.poll(cx)
     }
 }
 
