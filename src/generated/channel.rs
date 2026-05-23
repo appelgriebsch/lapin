@@ -1,143 +1,212 @@
+/// Options structs for every AMQP method that accepts flag arguments.
 pub mod options {
     use super::*;
 
+    /// Options for the `basic.qos` AMQP method.
     #[derive(Copy, Clone, Debug, Default, PartialEq)]
     pub struct BasicQosOptions {
+        /// Apply quality-of-service settings globally to the entire connection rather than just this channel.
         pub global: Boolean,
     }
 
+    /// Options for the `basic.consume` AMQP method.
     #[derive(Copy, Clone, Debug, Default, PartialEq)]
     pub struct BasicConsumeOptions {
+        /// Do not receive messages published by this connection on this consumer.
         pub no_local: Boolean,
+        /// Disable message acknowledgement; the server dequeues messages as soon as they are delivered.
         pub no_ack: Boolean,
+        /// Restrict access to the declaring connection; the entity is deleted when that connection closes.
         pub exclusive: Boolean,
+        /// Do not wait for a server confirmation; the operation is fire-and-forget.
         pub nowait: Boolean,
     }
 
+    /// Options for the `basic.cancel` AMQP method.
     #[derive(Copy, Clone, Debug, Default, PartialEq)]
     pub struct BasicCancelOptions {
+        /// Do not wait for a server confirmation; the operation is fire-and-forget.
         pub nowait: Boolean,
     }
 
+    /// Options for the `basic.publish` AMQP method.
     #[derive(Copy, Clone, Debug, Default, PartialEq)]
     pub struct BasicPublishOptions {
+        /// Return the message to the publisher if it cannot be routed to at least one queue.
         pub mandatory: Boolean,
+        /// Return the message to the publisher if no consumer is immediately available to receive it.
         pub immediate: Boolean,
     }
 
+    /// Options for the `basic.deliver` AMQP method.
     #[derive(Copy, Clone, Debug, Default, PartialEq)]
     pub struct BasicDeliverOptions {
+        /// Indicates the message was previously delivered but not acknowledged.
         pub redelivered: Boolean,
     }
 
+    /// Options for the `basic.get` AMQP method.
     #[derive(Copy, Clone, Debug, Default, PartialEq)]
     pub struct BasicGetOptions {
+        /// Disable message acknowledgement; the server dequeues messages as soon as they are delivered.
         pub no_ack: Boolean,
     }
 
+    /// Options for the `basic.get-ok` AMQP method.
     #[derive(Copy, Clone, Debug, Default, PartialEq)]
     pub struct BasicGetOkOptions {
+        /// Indicates the message was previously delivered but not acknowledged.
         pub redelivered: Boolean,
     }
 
+    /// Options for the `basic.ack` AMQP method.
     #[derive(Copy, Clone, Debug, Default, PartialEq)]
     pub struct BasicAckOptions {
+        /// Acknowledge or reject all outstanding deliveries up to and including this delivery tag.
         pub multiple: Boolean,
     }
 
+    /// Options for the `basic.reject` AMQP method.
     #[derive(Copy, Clone, Debug, Default, PartialEq)]
     pub struct BasicRejectOptions {
+        /// Re-queue the message rather than discarding or dead-lettering it.
         pub requeue: Boolean,
     }
 
+    /// Options for the `basic.recover-async` AMQP method.
     #[derive(Copy, Clone, Debug, Default, PartialEq)]
     pub struct BasicRecoverAsyncOptions {
+        /// Re-queue the message rather than discarding or dead-lettering it.
         pub requeue: Boolean,
     }
 
+    /// Options for the `basic.recover` AMQP method.
     #[derive(Copy, Clone, Debug, Default, PartialEq)]
     pub struct BasicRecoverOptions {
+        /// Re-queue the message rather than discarding or dead-lettering it.
         pub requeue: Boolean,
     }
 
+    /// Options for the `basic.nack` AMQP method.
     #[derive(Copy, Clone, Debug, Default, PartialEq)]
     pub struct BasicNackOptions {
+        /// Acknowledge or reject all outstanding deliveries up to and including this delivery tag.
         pub multiple: Boolean,
+        /// Re-queue the message rather than discarding or dead-lettering it.
         pub requeue: Boolean,
     }
 
+    /// Options for the `channel.flow` AMQP method.
     #[derive(Copy, Clone, Debug, Default, PartialEq)]
     pub struct ChannelFlowOptions {
+        /// Enable or disable message flow on the channel.
         pub active: Boolean,
     }
 
+    /// Options for the `channel.flow-ok` AMQP method.
     #[derive(Copy, Clone, Debug, Default, PartialEq)]
     pub struct ChannelFlowOkOptions {
+        /// Enable or disable message flow on the channel.
         pub active: Boolean,
     }
 
+    /// Options for the `access.request` AMQP method.
     #[derive(Copy, Clone, Debug, Default, PartialEq)]
     pub struct AccessRequestOptions {
+        /// Restrict access to the declaring connection; the entity is deleted when that connection closes.
         pub exclusive: Boolean,
+        /// Verify that the exchange or queue exists without creating or modifying it.
         pub passive: Boolean,
+        /// Enable or disable message flow on the channel.
         pub active: Boolean,
+        /// Request write permission for the resource (access class only).
         pub write: Boolean,
+        /// Request read permission for the resource (access class only).
         pub read: Boolean,
     }
 
+    /// Options for the `exchange.declare` AMQP method.
     #[derive(Copy, Clone, Debug, Default, PartialEq)]
     pub struct ExchangeDeclareOptions {
+        /// Verify that the exchange or queue exists without creating or modifying it.
         pub passive: Boolean,
+        /// Survive broker restarts; the entity is persisted to disk.
         pub durable: Boolean,
+        /// Delete the exchange or queue automatically when it has no consumers or bindings.
         pub auto_delete: Boolean,
+        /// Mark the exchange as internal; clients may not publish directly to it.
         pub internal: Boolean,
+        /// Do not wait for a server confirmation; the operation is fire-and-forget.
         pub nowait: Boolean,
     }
 
+    /// Options for the `exchange.delete` AMQP method.
     #[derive(Copy, Clone, Debug, Default, PartialEq)]
     pub struct ExchangeDeleteOptions {
+        /// Only delete the exchange or queue if it has no consumers or bindings.
         pub if_unused: Boolean,
+        /// Do not wait for a server confirmation; the operation is fire-and-forget.
         pub nowait: Boolean,
     }
 
+    /// Options for the `exchange.bind` AMQP method.
     #[derive(Copy, Clone, Debug, Default, PartialEq)]
     pub struct ExchangeBindOptions {
+        /// Do not wait for a server confirmation; the operation is fire-and-forget.
         pub nowait: Boolean,
     }
 
+    /// Options for the `exchange.unbind` AMQP method.
     #[derive(Copy, Clone, Debug, Default, PartialEq)]
     pub struct ExchangeUnbindOptions {
+        /// Do not wait for a server confirmation; the operation is fire-and-forget.
         pub nowait: Boolean,
     }
 
+    /// Options for the `queue.declare` AMQP method.
     #[derive(Copy, Clone, Debug, Default, PartialEq)]
     pub struct QueueDeclareOptions {
+        /// Verify that the exchange or queue exists without creating or modifying it.
         pub passive: Boolean,
+        /// Survive broker restarts; the entity is persisted to disk.
         pub durable: Boolean,
+        /// Restrict access to the declaring connection; the entity is deleted when that connection closes.
         pub exclusive: Boolean,
+        /// Delete the exchange or queue automatically when it has no consumers or bindings.
         pub auto_delete: Boolean,
+        /// Do not wait for a server confirmation; the operation is fire-and-forget.
         pub nowait: Boolean,
     }
 
+    /// Options for the `queue.bind` AMQP method.
     #[derive(Copy, Clone, Debug, Default, PartialEq)]
     pub struct QueueBindOptions {
+        /// Do not wait for a server confirmation; the operation is fire-and-forget.
         pub nowait: Boolean,
     }
 
+    /// Options for the `queue.purge` AMQP method.
     #[derive(Copy, Clone, Debug, Default, PartialEq)]
     pub struct QueuePurgeOptions {
+        /// Do not wait for a server confirmation; the operation is fire-and-forget.
         pub nowait: Boolean,
     }
 
+    /// Options for the `queue.delete` AMQP method.
     #[derive(Copy, Clone, Debug, Default, PartialEq)]
     pub struct QueueDeleteOptions {
+        /// Only delete the exchange or queue if it has no consumers or bindings.
         pub if_unused: Boolean,
+        /// Only delete the queue if it has no messages.
         pub if_empty: Boolean,
+        /// Do not wait for a server confirmation; the operation is fire-and-forget.
         pub nowait: Boolean,
     }
 
+    /// Options for the `confirm.select` AMQP method.
     #[derive(Copy, Clone, Debug, Default, PartialEq)]
     pub struct ConfirmSelectOptions {
+        /// Do not wait for a server confirmation; the operation is fire-and-forget.
         pub nowait: Boolean,
     }
 }
@@ -335,6 +404,15 @@ impl Channel {
         }
     }
 
+    /// Set the quality of service for this channel.
+    ///
+    /// Limits the number of unacknowledged messages that the server will deliver.
+    /// `prefetch_count` controls the maximum number of unacknowledged messages;
+    /// 0 means no limit. The `global` flag (in [`BasicQosOptions`]) determines
+    /// whether the limit applies per-consumer (`false`) or across the whole channel
+    /// (`true`).
+    ///
+    /// Call this before [`Channel::basic_consume`] to control back-pressure.
     pub async fn basic_qos(
         &self,
         prefetch_count: ShortUInt,
@@ -384,6 +462,12 @@ impl Channel {
             ),
         }
     }
+    /// Register a consumer on a queue.
+    ///
+    /// Use the higher-level [`Channel::basic_consume`] wrapper instead of calling
+    /// this method directly.
+    ///
+    /// [`Channel::basic_consume`]: crate::Channel::basic_consume
     async fn do_basic_consume(
         &self,
         queue: ShortString,
@@ -472,6 +556,15 @@ impl Channel {
             ),
         }
     }
+    /// Cancel a consumer subscription.
+    ///
+    /// Tells the server to stop delivering messages for the consumer identified by
+    /// `consumer_tag`. This is the counterpart to [`Channel::basic_consume`]. After
+    /// this call the consumer's stream will end with `None`.
+    ///
+    /// Prefer calling this over simply dropping the [`Consumer`]: an explicit cancel
+    /// sends the cancellation through the server so that no further messages are
+    /// delivered, whereas a drop only discards already-delivered ones.
     pub async fn basic_cancel(
         &self,
         consumer_tag: ShortString,
@@ -512,6 +605,7 @@ impl Channel {
         }
         self.on_basic_cancel_received(method)
     }
+    /// Server confirmation that the consumer identified by the consumer tag has been cancelled.
     async fn basic_cancel_ok(&self, consumer_tag: ShortString) -> Result<()> {
         if !self.status.connected() {
             return Err(self.status.state_error("basic.cancel-ok"));
@@ -548,6 +642,23 @@ impl Channel {
             ),
         }
     }
+    /// Publish a message to an exchange.
+    ///
+    /// Routes `payload` through `exchange` using `routing_key`. The empty string
+    /// `""` selects the default exchange, which routes messages directly to the
+    /// queue whose name matches `routing_key`.
+    ///
+    /// `properties` carries AMQP message metadata (content-type, headers,
+    /// delivery-mode, priority, …). Use [`BasicProperties::default()`] when you
+    /// do not need to set any.
+    ///
+    /// Returns a [`crate::PublisherConfirm`] future. If publisher confirms are **not**
+    /// enabled (via [`Channel::confirm_select`]) the future resolves immediately
+    /// to [`crate::Confirmation::NotRequested`]. If they are enabled, it resolves once
+    /// the broker acknowledges or negatively-acknowledges the message.
+    ///
+    /// Use [`Channel::wait_for_confirms`] to drain all outstanding confirms at
+    /// once.
     pub async fn basic_publish(
         &self,
         exchange: ShortString,
@@ -595,6 +706,12 @@ impl Channel {
         }
         self.on_basic_deliver_received(method)
     }
+    /// Synchronously poll a single message from a queue.
+    ///
+    /// Use the higher-level [`Channel::basic_get`] wrapper instead of calling
+    /// this method directly.
+    ///
+    /// [`Channel::basic_get`]: crate::Channel::basic_get
     async fn do_basic_get(
         &self,
         queue: ShortString,
@@ -648,6 +765,15 @@ impl Channel {
         }
         self.on_basic_get_empty_received(method)
     }
+    /// Acknowledge one or more messages.
+    ///
+    /// Tells the server that the consumer has successfully processed the message
+    /// identified by `delivery_tag`. If [`BasicAckOptions::multiple`] is `true`,
+    /// all unacknowledged messages up to and including `delivery_tag` are
+    /// acknowledged in one shot.
+    ///
+    /// Prefer using [`crate::Acker::ack`] on the delivery directly; this low-level
+    /// method is exposed for advanced use-cases.
     pub async fn basic_ack(
         &self,
         delivery_tag: LongLongUInt,
@@ -674,6 +800,18 @@ impl Channel {
         }
         self.on_basic_ack_received(method)
     }
+    /// Reject a single message.
+    ///
+    /// Signals to the server that the consumer could not process the message
+    /// identified by `delivery_tag`. If [`BasicRejectOptions::requeue`] is `true`
+    /// the message is re-queued; otherwise it is discarded or sent to a dead-letter
+    /// exchange.
+    ///
+    /// To reject multiple messages in one call, use [`Channel::basic_nack`] with
+    /// [`BasicNackOptions::multiple`] set to `true`.
+    ///
+    /// Prefer using [`crate::Acker::reject`] on the delivery directly; this low-level
+    /// method is exposed for advanced use-cases.
     pub async fn basic_reject(
         &self,
         delivery_tag: LongLongUInt,
@@ -695,6 +833,16 @@ impl Channel {
         self.send_method_frame(method, Box::new(resolver.clone()), None, Some(resolver));
         promise.await
     }
+    /// Ask the server to redeliver all unacknowledged messages (fire-and-forget).
+    ///
+    /// This is the asynchronous variant of [`Channel::basic_recover`]: it sends
+    /// the request but does not wait for a broker confirmation. If
+    /// [`BasicRecoverAsyncOptions::requeue`] is `true` the messages may be
+    /// delivered to a different consumer; if `false` they are redelivered to the
+    /// original consumer.
+    ///
+    /// Prefer [`Channel::basic_recover`] unless you specifically need
+    /// fire-and-forget semantics.
     pub async fn basic_recover_async(&self, options: BasicRecoverAsyncOptions) -> Result<()> {
         if !self.status.connected() {
             return Err(self.status.state_error("basic.recover-async"));
@@ -710,6 +858,13 @@ impl Channel {
         self.on_basic_recover_async_sent();
         promise.await
     }
+    /// Ask the server to redeliver all unacknowledged messages.
+    ///
+    /// Waits for the broker to confirm that all outstanding unacknowledged
+    /// messages have been requeued or redelivered. If
+    /// [`BasicRecoverOptions::requeue`] is `true` the messages may be delivered
+    /// to a different consumer; if `false` they are redelivered to the original
+    /// consumer.
     pub async fn basic_recover(&self, options: BasicRecoverOptions) -> Result<()> {
         if !self.status.connected() {
             return Err(self.status.state_error("basic.recover"));
@@ -753,6 +908,16 @@ impl Channel {
             ),
         }
     }
+    /// Negatively acknowledge one or more messages (RabbitMQ extension).
+    ///
+    /// Similar to [`Channel::basic_reject`] but supports bulk rejection via
+    /// [`BasicNackOptions::multiple`]. If `multiple` is `true`, all
+    /// unacknowledged messages up to and including `delivery_tag` are rejected.
+    /// If [`BasicNackOptions::requeue`] is `true` the messages are re-queued;
+    /// otherwise they are discarded or dead-lettered.
+    ///
+    /// Prefer using [`crate::Acker::nack`] on the delivery directly; this low-level
+    /// method is exposed for advanced use-cases.
     pub async fn basic_nack(
         &self,
         delivery_tag: LongLongUInt,
@@ -791,6 +956,7 @@ impl Channel {
             None => self.connection_process_error(self.connection_status.state(), None, None),
         }
     }
+    /// Client response to `connection.start`, providing the chosen security mechanism and initial credentials.
     async fn connection_start_ok(
         &self,
         client_properties: FieldTable,
@@ -837,6 +1003,7 @@ impl Channel {
             None => self.connection_process_error(self.connection_status.state(), None, None),
         }
     }
+    /// Client response to a `connection.secure` challenge, providing the SASL response data.
     async fn connection_secure_ok(
         &self,
         response: LongString,
@@ -875,6 +1042,7 @@ impl Channel {
             None => self.connection_process_error(self.connection_status.state(), None, None),
         }
     }
+    /// Client confirmation of negotiated connection parameters (channel max, frame max, heartbeat).
     async fn connection_tune_ok(
         &self,
         channel_max: ShortUInt,
@@ -893,6 +1061,7 @@ impl Channel {
         self.send_method_frame(method, Box::new(resolver.clone()), None, Some(resolver));
         promise.await
     }
+    /// Client request to open a virtual host, completing the connection handshake.
     pub(crate) async fn connection_open(
         &self,
         virtual_host: ShortString,
@@ -937,6 +1106,10 @@ impl Channel {
             ),
         }
     }
+    /// Request to close the connection, providing a reply code and text.
+    ///
+    /// Either side may initiate a close. The peer must reply with
+    /// `connection.close-ok` before the TCP connection is torn down.
     pub(crate) async fn connection_close(
         &self,
         reply_code: ShortUInt,
@@ -970,6 +1143,7 @@ impl Channel {
         }
         self.on_connection_close_received(method)
     }
+    /// Acknowledgement of a `connection.close` request; the TCP connection may now be closed.
     pub(crate) async fn connection_close_ok(&self, error: Error) -> Result<()> {
         let (promise, resolver) = Promise::new("connection.close-ok");
         let method = AMQPClass::Connection(protocol::connection::AMQPMethod::CloseOk(
@@ -1018,6 +1192,12 @@ impl Channel {
         }
         self.on_connection_unblocked_received(method)
     }
+    /// Request the server to update the authentication secret (e.g. rotate an OAuth2 token).
+    ///
+    /// Use [`Connection::update_secret`] or [`auth::TokenAuthProvider`] for automatic rotation.
+    ///
+    /// [`Connection::update_secret`]: crate::Connection::update_secret
+    /// [`auth::TokenAuthProvider`]: crate::auth::TokenAuthProvider
     pub(crate) async fn connection_update_secret(
         &self,
         new_secret: LongString,
@@ -1058,6 +1238,7 @@ impl Channel {
       },
     }
     }
+    /// Open a new channel on the connection, identified by its channel number.
     pub(crate) async fn channel_open(&self, channel: Channel) -> Result<Channel> {
         if !self.status.initializing() {
             return Err(self.status.state_error("channel.open"));
@@ -1098,6 +1279,16 @@ impl Channel {
             ),
         }
     }
+    /// Enable or disable message flow on this channel.
+    ///
+    /// When [`ChannelFlowOptions::active`] is `false`, the server stops sending
+    /// content frames. This is a flow-control mechanism: pause delivery when your
+    /// consumer is overwhelmed and resume it when ready. Returns the actual flow
+    /// state confirmed by the server.
+    ///
+    /// Note: RabbitMQ supports this method but does not apply back-pressure on
+    /// the publisher side; prefer [`Channel::basic_qos`] for consumer-side
+    /// throttling.
     pub async fn channel_flow(&self, options: ChannelFlowOptions) -> Result<Boolean> {
         if !self.status.connected() {
             return Err(self.status.state_error("channel.flow"));
@@ -1124,6 +1315,7 @@ impl Channel {
         }
         self.on_channel_flow_received(method)
     }
+    /// Server confirmation of the current message flow state on the channel.
     async fn channel_flow_ok(&self, options: ChannelFlowOkOptions) -> Result<()> {
         if !self.status.connected() {
             return Err(self.status.state_error("channel.flow-ok"));
@@ -1159,6 +1351,12 @@ impl Channel {
             ),
         }
     }
+    /// Request to close the channel, providing a reply code and text.
+    ///
+    /// The peer must respond with `channel.close-ok`. Use [`Channel::close`] rather
+    /// than calling this directly.
+    ///
+    /// [`Channel::close`]: crate::Channel::close
     async fn do_channel_close(
         &self,
         reply_code: ShortUInt,
@@ -1196,6 +1394,7 @@ impl Channel {
         }
         self.on_channel_close_received(method)
     }
+    /// Acknowledgement of a `channel.close` request; the channel is now closed.
     async fn channel_close_ok(&self, error: Option<Error>) -> Result<()> {
         if !self.status.closing() {
             return Err(self.status.state_error("channel.close-ok"));
@@ -1231,6 +1430,11 @@ impl Channel {
             ),
         }
     }
+    /// Request access to a virtual host (AMQP 0-8 compatibility).
+    ///
+    /// This method is a no-op in RabbitMQ and is retained only for compatibility
+    /// with AMQP 0-8 brokers. In AMQP 0-9-1 access control is handled at
+    /// connection time. The returned ticket value is ignored by modern brokers.
     pub async fn access_request(
         &self,
         realm: ShortString,
@@ -1291,6 +1495,12 @@ impl Channel {
             ),
         }
     }
+    /// Declare an exchange, creating it if it does not already exist.
+    ///
+    /// Use the higher-level [`Channel::exchange_declare`] wrapper instead of
+    /// calling this method directly.
+    ///
+    /// [`Channel::exchange_declare`]: crate::Channel::exchange_declare
     async fn do_exchange_declare(
         &self,
         exchange: ShortString,
@@ -1431,6 +1641,13 @@ impl Channel {
             ),
         }
     }
+    /// Bind a source exchange to a destination exchange.
+    ///
+    /// Messages published to `source` that match `routing_key` (and `arguments`
+    /// for header exchanges) will be forwarded to `destination`. This is a
+    /// RabbitMQ extension that allows exchange-to-exchange routing.
+    ///
+    /// The binding is removed with [`Channel::exchange_unbind`].
     pub async fn exchange_bind(
         &self,
         destination: ShortString,
@@ -1509,6 +1726,11 @@ impl Channel {
             ),
         }
     }
+    /// Remove a binding between two exchanges.
+    ///
+    /// Removes the exchange-to-exchange binding created by [`Channel::exchange_bind`].
+    /// `source`, `destination`, `routing_key`, and `arguments` must exactly match
+    /// the parameters used when the binding was created.
     pub async fn exchange_unbind(
         &self,
         destination: ShortString,
@@ -1587,6 +1809,18 @@ impl Channel {
             ),
         }
     }
+    /// Declare a queue, creating it if it does not already exist.
+    ///
+    /// Returns a [`Queue`] value carrying the queue name, message count, and
+    /// consumer count as reported by the server.
+    ///
+    /// Common option presets are available as constructor methods on
+    /// [`QueueDeclareOptions`]: [`QueueDeclareOptions::durable`],
+    /// [`QueueDeclareOptions::exclusive`].
+    ///
+    /// When [`QueueDeclareOptions::passive`] is `true` the server only checks
+    /// whether the queue exists without modifying it; an error is returned if it
+    /// does not.
     pub async fn queue_declare(
         &self,
         queue: ShortString,
@@ -1655,6 +1889,13 @@ impl Channel {
             ),
         }
     }
+    /// Bind a queue to an exchange.
+    ///
+    /// Messages published to `exchange` that match `routing_key` (and `arguments`
+    /// for header exchanges) will be routed to `queue`. Multiple bindings with
+    /// different routing keys can be created between the same queue and exchange.
+    ///
+    /// The binding is removed with [`Channel::queue_unbind`].
     pub async fn queue_bind(
         &self,
         queue: ShortString,
@@ -1732,6 +1973,10 @@ impl Channel {
             ),
         }
     }
+    /// Delete all messages from a queue without deleting the queue itself.
+    ///
+    /// Returns the number of messages that were purged. This operation is
+    /// irreversible; use with care.
     pub async fn queue_purge(
         &self,
         queue: ShortString,
@@ -1779,6 +2024,13 @@ impl Channel {
             ),
         }
     }
+    /// Delete a queue.
+    ///
+    /// Returns the number of messages that were in the queue. The queue and all
+    /// its bindings are removed. If [`QueueDeleteOptions::if_unused`] is set, the
+    /// delete only succeeds when there are no consumers; if
+    /// [`QueueDeleteOptions::if_empty`] is set, it only succeeds when the queue
+    /// has no messages.
     pub async fn queue_delete(
         &self,
         queue: ShortString,
@@ -1839,6 +2091,11 @@ impl Channel {
             ),
         }
     }
+    /// Remove a binding between a queue and an exchange.
+    ///
+    /// Removes the binding created by [`Channel::queue_bind`]. `queue`,
+    /// `exchange`, `routing_key`, and `arguments` must exactly match the
+    /// parameters used when the binding was created.
     pub async fn queue_unbind(
         &self,
         queue: ShortString,
@@ -1910,6 +2167,12 @@ impl Channel {
             ),
         }
     }
+    /// Enable standard AMQP transactions on this channel.
+    ///
+    /// Once selected, publishes and acknowledgements are grouped into atomic
+    /// transactions that are committed with [`Channel::tx_commit`] or rolled back
+    /// with [`Channel::tx_rollback`]. Transactions significantly reduce throughput;
+    /// prefer publisher confirms ([`Channel::confirm_select`]) when possible.
     pub async fn tx_select(&self) -> Result<()> {
         if !self.status.connected() {
             return Err(self.status.state_error("tx.select"));
@@ -1951,6 +2214,12 @@ impl Channel {
             ),
         }
     }
+    /// Commit the current transaction.
+    ///
+    /// All publishes and acknowledgements issued since the last
+    /// [`Channel::tx_select`], [`Channel::tx_commit`], or
+    /// [`Channel::tx_rollback`] are made permanent. Requires transaction mode to
+    /// be enabled first via [`Channel::tx_select`].
     pub async fn tx_commit(&self) -> Result<()> {
         if !self.status.connected() {
             return Err(self.status.state_error("tx.commit"));
@@ -1992,6 +2261,12 @@ impl Channel {
             ),
         }
     }
+    /// Roll back the current transaction.
+    ///
+    /// Discards all publishes and acknowledgements issued since the last
+    /// [`Channel::tx_select`], [`Channel::tx_commit`], or
+    /// [`Channel::tx_rollback`]. Requires transaction mode to be enabled first
+    /// via [`Channel::tx_select`].
     pub async fn tx_rollback(&self) -> Result<()> {
         if !self.status.connected() {
             return Err(self.status.state_error("tx.rollback"));
@@ -2035,6 +2310,16 @@ impl Channel {
             ),
         }
     }
+    /// Enable publisher confirms on this channel.
+    ///
+    /// After calling this method, every [`Channel::basic_publish`] call returns a
+    /// [`crate::PublisherConfirm`] future that resolves once the broker has either
+    /// acknowledged ([`crate::Confirmation::Ack`]) or negatively acknowledged
+    /// ([`crate::Confirmation::Nack`]) the message.
+    ///
+    /// Publisher confirms and AMQP transactions ([`Channel::tx_select`]) are
+    /// mutually exclusive. Use [`Channel::wait_for_confirms`] to drain all
+    /// outstanding confirms at once.
     pub async fn confirm_select(&self, options: ConfirmSelectOptions) -> Result<()> {
         if !self.status.connected_or_recovering() {
             return Err(self.status.state_error("confirm.select"));

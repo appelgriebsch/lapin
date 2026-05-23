@@ -587,5 +587,29 @@
         }
       }
     }
+  },
+  "metadata": {
+    "flags_doc": {
+      "active": "Enable or disable message flow on the channel.",
+      "auto-delete": "Delete the exchange or queue automatically when it has no consumers or bindings.",
+      "durable": "Survive broker restarts; the entity is persisted to disk.",
+      "exclusive": "Restrict access to the declaring connection; the entity is deleted when that connection closes.",
+      "global": "Apply quality-of-service settings globally to the entire connection rather than just this channel.",
+      "if-empty": "Only delete the queue if it has no messages.",
+      "if-unused": "Only delete the exchange or queue if it has no consumers or bindings.",
+      "immediate": "Return the message to the publisher if no consumer is immediately available to receive it.",
+      "insist": "Insist on connecting to the requested virtual host (deprecated in AMQP 0-9-1).",
+      "internal": "Mark the exchange as internal; clients may not publish directly to it.",
+      "mandatory": "Return the message to the publisher if it cannot be routed to at least one queue.",
+      "multiple": "Acknowledge or reject all outstanding deliveries up to and including this delivery tag.",
+      "no-ack": "Disable message acknowledgement; the server dequeues messages as soon as they are delivered.",
+      "no-local": "Do not receive messages published by this connection on this consumer.",
+      "nowait": "Do not wait for a server confirmation; the operation is fire-and-forget.",
+      "passive": "Verify that the exchange or queue exists without creating or modifying it.",
+      "read": "Request read permission for the resource (access class only).",
+      "redelivered": "Indicates the message was previously delivered but not acknowledged.",
+      "requeue": "Re-queue the message rather than discarding or dead-lettering it.",
+      "write": "Request write permission for the resource (access class only)."
+    }
   }
 }

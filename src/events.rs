@@ -62,13 +62,25 @@ impl EventsSender {
     }
 }
 
-/// An event happening on the connection
+/// A connection-level event delivered via [`Connection::events_listener`].
+///
+/// The stream produced by [`Connection::events_listener`] emits these values
+/// as the connection progresses through its lifecycle.
+///
+/// [`Connection::events_listener`]: crate::Connection::events_listener
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub enum Event {
+    /// The connection has been established (or re-established after recovery).
     Connected,
+    /// The broker has blocked the connection due to resource constraints.
+    /// The inner string is the human-readable reason supplied by the broker.
     ConnectionBlocked(String),
+    /// The broker has unblocked the connection.
     ConnectionUnblocked,
+    /// The broker has changed the allowed flow direction.
+    /// `true` means publishing is permitted; `false` means it is paused.
     SendFlow(bool),
+    /// An error occurred on the connection.
     Error(Error),
 }

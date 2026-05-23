@@ -8,151 +8,138 @@
 [![Dependency Status](https://deps.rs/repo/github/amqp-rs/lapin/status.svg)](https://deps.rs/repo/github/amqp-rs/lapin)
 [![LICENSE](https://img.shields.io/crates/l/lapin)](LICENSE)
 
- <strong>
-   A Rust AMQP client library.
- </strong>
+**An async AMQP 0-9-1 client library for Rust, targeting RabbitMQ.**
 
 </div>
 
-<br />
+Lapin implements the [AMQP 0-9-1 specification](https://www.rabbitmq.com/resources/specs/amqp0-9-1.pdf)
+on top of an async I/O layer. It is runtime-agnostic: the same code works with
+**tokio** (default), **smol**, or **async-global-executor**.
 
-This project follows the [AMQP 0.9.1 specifications](https://www.rabbitmq.com/resources/specs/amqp0-9-1.pdf), targeting especially RabbitMQ.
+For full API documentation see [docs.rs/lapin](https://docs.rs/lapin).
 
-## Features
+## Quick start
 
-- hickory-dns: use hickory-dns for domain name resolution to avoid spurious network hangs
-- codegen: force code generation (default to pregenerated sources)
-- vendored-openssl: use a vendored openssl version instead of the system one (when using openssl backend)
-- verbose-errors: enable more verbose errors in the AMQP parser
-
-## Runtime
-
-- tokio (default)
-- smol
-- async-global-executor
-
-## TLS backends
-
-- native-tls
-- openssl
-- rustls (default)
-
-## Rustls certificates store
-
-- rustls-platform-verifier (default)
-- rustls-native-certs
-- rustls-webpki-roots-certs
-
-## Warning about crypto backends for rustls
-
-A crypto implementation must be enabled in rustls using feature flags.
-We mimic what rustls does, providing one feature flag per implementation and enabling the same as rustls by default.
-Available options are:
-- `rustls--aws_lc_rs` (default)
-- `rustls--ring`
-
-## Integration with third-party runtimes
-
-Lapin can use any runtime of your choice by passing an `async_rs::Runtime` when connecting.
-
-There are implementations for tokio, smol and others in [async-rs](https://docs.rs/async-rs)
-
-## Automatic connection recovery (on e.g. network failure)
-
-There is support for recovering connection after errors. To enable this, you need to enable it in the `ConnectionProperties`:
-
-```rust
-let properties = ConnectionProperties::default().enable_auto_recover(); // you might also want to configure the backoff for the TCP connection itself
-// connect using properties.
-```
-
-You can then check if an error can be recovered and wait for recovery:
-
-```rust
-channel.wait_for_recovery(error).await?;
-```
-
-## Example
-
-```rust
-use async_rs::{Runtime, traits::*};
+```rust,no_run
 use futures_lite::stream::StreamExt;
 use lapin::{
-    BasicProperties, Confirmation, Connection, ConnectionProperties, Result, options::*,
-    types::FieldTable,
+    options::*, types::FieldTable, BasicProperties, Connection,
+    ConnectionProperties, Result,
 };
-use tracing::info;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    if std::env::var("RUST_LOG").is_err() {
-        unsafe { std::env::set_var("RUST_LOG", "info") };
-    }
+    let addr = std::env::var("AMQP_ADDR")
+        .unwrap_or_else(|_| "amqp://127.0.0.1:5672/%2f".into());
 
-    tracing_subscriber::fmt::init();
+    let conn = Connection::connect(&addr, ConnectionProperties::default()).await?;
+    let channel = conn.create_channel().await?;
 
-    let addr = std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://127.0.0.1:5672/%2f".into());
-    let runtime = Runtime::tokio_current();
-
-    let conn = Connection::connect_with_runtime(
-        &addr,
-        ConnectionProperties::default().with_connection_name("pubsub-example".into()),
-        runtime.clone(),
-    )
-    .await?;
-
-    info!("CONNECTED");
-
-    let channel_a = conn.create_channel().await?;
-    let channel_b = conn.create_channel().await?;
-
-    let queue = channel_a
-        .queue_declare(
-            "hello".into(),
-            QueueDeclareOptions::durable(),
-            FieldTable::default(),
-        )
+    channel
+        .queue_declare("hello", QueueDeclareOptions::durable(), FieldTable::default())
         .await?;
 
-    info!(?queue, "Declared queue");
+    channel
+        .basic_publish(
+            "",
+            "hello",
+            BasicPublishOptions::default(),
+            b"Hello, world!",
+            BasicProperties::default(),
+        )
+        .await?
+        .await?;
 
-    let mut consumer = channel_b
+    let mut consumer = channel
         .basic_consume(
-            "hello".into(),
-            "my_consumer".into(),
+            "hello",
+            "my_consumer",
             BasicConsumeOptions::default(),
             FieldTable::default(),
         )
         .await?;
-    let cons = runtime.spawn(async move {
-        info!("will consume");
-        while let Some(delivery) = consumer.next().await {
-            let delivery = delivery?;
-            delivery.ack(BasicAckOptions::default()).await?;
-        }
-        Ok(())
-    });
 
-    let payload = b"Hello world!";
-
-    for _ in 0..1500000 {
-        let confirm = channel_a
-            .basic_publish(
-                "".into(),
-                "hello".into(),
-                BasicPublishOptions::default(),
-                payload,
-                BasicProperties::default(),
-            )
-            .await?
-            .await?;
-        assert_eq!(confirm, Confirmation::NotRequested);
+    while let Some(delivery) = consumer.next().await {
+        let delivery = delivery?;
+        delivery.ack(BasicAckOptions::default()).await?;
     }
-
-    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-    channel_b
-        .basic_cancel("my_consumer".into(), BasicCancelOptions::default())
-        .await?;
-    cons.await
+    Ok(())
 }
 ```
+
+## Automatic connection recovery
+
+Pass `.enable_auto_recover()` in `ConnectionProperties` to have lapin
+automatically reconnect and replay exchanges, queues, bindings, and consumers
+after a network failure:
+
+```rust,no_run
+use lapin::ConnectionProperties;
+
+let props = ConnectionProperties::default().enable_auto_recover();
+```
+
+After catching a recoverable error on a channel, call
+`channel.wait_for_recovery(error).await` to block until recovery is complete.
+
+## Feature flags
+
+### Async runtime (pick exactly one)
+
+| Flag | Notes |
+|------|-------|
+| `tokio` *(default)* | Requires a running Tokio runtime |
+| `smol` | Uses the smol executor |
+| `async-global-executor` | Uses async-global-executor |
+
+### TLS backend (pick at most one)
+
+| Flag | Notes |
+|------|-------|
+| `rustls` *(default)* | TLS via rustls |
+| `native-tls` | TLS via the platform native library |
+| `openssl` | TLS via OpenSSL |
+
+### Rustls certificate store (when `rustls` is active)
+
+| Flag | Notes |
+|------|-------|
+| `rustls-platform-verifier` *(default)* | Platform trust store |
+| `rustls-native-certs` | Native root certificates |
+| `rustls-webpki-roots-certs` | Bundled webpki root set |
+
+### Rustls crypto provider (at least one required)
+
+| Flag | Notes |
+|------|-------|
+| `rustls--aws_lc_rs` *(default)* | Uses aws-lc-rs |
+| `rustls--ring` | Uses ring (more portable) |
+
+### Miscellaneous
+
+| Flag | Notes |
+|------|-------|
+| `hickory-dns` | Hickory DNS resolver (avoids spurious network hangs) |
+| `codegen` | Force protocol code regeneration at build time |
+| `verbose-errors` | More detailed AMQP parser error messages |
+
+## Custom runtimes
+
+Lapin can use any runtime by supplying an `async_rs::Runtime` value:
+
+```rust,no_run
+use lapin::{Connection, ConnectionProperties, Result};
+
+async fn connect_with_custom_runtime() -> Result<()> {
+    let runtime = async_rs::Runtime::tokio_current();
+    let conn = Connection::connect_with_runtime(
+        "amqp://localhost",
+        ConnectionProperties::default(),
+        runtime,
+    ).await?;
+    drop(conn);
+    Ok(())
+}
+```
+
+See [async-rs](https://docs.rs/async-rs) for available runtime wrappers.

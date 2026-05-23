@@ -124,11 +124,18 @@ impl Channel {
         }
     }
 
+    /// Return a snapshot of the current channel state.
     #[must_use]
     pub fn status(&self) -> &ChannelStatus {
         &self.status
     }
 
+    /// Wait for the channel to be recovered after a connection error.
+    ///
+    /// If auto-recovery is enabled and `error` is recoverable, this suspends
+    /// the caller until the IO loop has reconnected and replayed the topology.
+    /// Returns `Ok(())` when recovery is complete, or re-returns `error` if
+    /// recovery is not possible.
     pub async fn wait_for_recovery(&self, error: Error) -> Result<()> {
         if self.recovery_config.can_recover(&error)
             && let Some(notifier) = error.notifier()
@@ -181,6 +188,7 @@ impl Channel {
         self.status.set_state(state);
     }
 
+    /// Return the numeric channel ID assigned by the server.
     #[must_use]
     pub fn id(&self) -> ChannelId {
         self.id
@@ -219,10 +227,21 @@ impl Channel {
         }
     }
 
+    /// Perform a graceful AMQP channel close.
+    ///
+    /// Sends `Channel.Close` and waits for `Channel.Close-Ok`. Use
+    /// `reply_code = 200` and `reply_text = "OK"` for a normal shutdown.
     pub async fn close(&self, reply_code: ReplyCode, reply_text: ShortString) -> Result<()> {
         self.do_channel_close(reply_code, reply_text, 0, 0).await
     }
 
+    /// Start a message consumer on `queue`.
+    ///
+    /// Returns a [`Consumer`] stream that yields [`Delivery`] values.
+    /// `consumer_tag` uniquely identifies this consumer on the channel; pass
+    /// an empty string to let the server generate one.
+    ///
+    /// See [`Consumer`] for acknowledgement and prefetch documentation.
     pub async fn basic_consume(
         &self,
         queue: ShortString,
@@ -236,6 +255,14 @@ impl Channel {
         Ok(consumer.external(self.id))
     }
 
+    /// Synchronously fetch a single message from `queue`.
+    ///
+    /// Returns `None` if the queue is empty, or `Some(`[`BasicGetMessage`]`)`.
+    /// Unlike [`basic_consume`], this does not establish a long-lived
+    /// consumer; it is a one-shot pull. For high-throughput use cases prefer
+    /// [`basic_consume`].
+    ///
+    /// [`basic_consume`]: Self::basic_consume
     pub async fn basic_get(
         &self,
         queue: ShortString,
@@ -244,6 +271,13 @@ impl Channel {
         self.do_basic_get(queue, options, None).await
     }
 
+    /// Declare an exchange, creating it if it does not already exist.
+    ///
+    /// `kind` selects the exchange type (direct, fanout, topic, headers, or a
+    /// custom plugin type). Pass [`ExchangeDeclareOptions::default()`] for a
+    /// transient, non-internal, non-passive exchange. Setting
+    /// [`ExchangeDeclareOptions::passive`] makes the declaration a no-op that
+    /// only checks for the exchange's existence.
     pub async fn exchange_declare(
         &self,
         exchange: ShortString,
@@ -261,6 +295,17 @@ impl Channel {
         .await
     }
 
+    /// Wait for all outstanding publisher confirms and return any returned messages.
+    ///
+    /// Blocks until every [`PublisherConfirm`] produced by prior
+    /// [`basic_publish`] calls on this channel has been resolved by the
+    /// broker. Returns the list of messages that were returned (unroutable
+    /// mandatory or immediate messages).
+    ///
+    /// Requires publisher confirms to be enabled via [`confirm_select`].
+    ///
+    /// [`basic_publish`]: Self::basic_publish
+    /// [`confirm_select`]: Self::confirm_select
     pub async fn wait_for_confirms(&self) -> Result<Vec<BasicReturnMessage>> {
         if let Some(last_pending) = self.acknowledgements.get_last_pending() {
             trace!("Waiting for pending confirms");

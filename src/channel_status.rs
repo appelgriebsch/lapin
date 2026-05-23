@@ -14,6 +14,11 @@ use std::{
 };
 use tracing::trace;
 
+/// Shared, cheaply cloneable view of a channel's current state.
+///
+/// Obtained from [`Channel::status`].
+///
+/// [`Channel::status`]: crate::Channel::status
 #[derive(Clone)]
 pub struct ChannelStatus(Arc<RwLock<Inner>>);
 
@@ -22,21 +27,25 @@ impl ChannelStatus {
         Self(Arc::new(RwLock::new(Inner::new(id, internal_rpc))))
     }
 
+    /// Returns `true` if the channel is in the process of opening (not yet ready).
     #[must_use]
     pub fn initializing(&self) -> bool {
         [ChannelState::Initial, ChannelState::Reconnecting].contains(&self.read().state)
     }
 
+    /// Returns `true` if the channel is in the process of closing or reconnecting.
     #[must_use]
     pub fn closing(&self) -> bool {
         [ChannelState::Closing, ChannelState::Reconnecting].contains(&self.read().state)
     }
 
+    /// Returns `true` if the channel is in [`ChannelState::Connected`] and ready for use.
     #[must_use]
     pub fn connected(&self) -> bool {
         self.read().state == ChannelState::Connected
     }
 
+    /// Returns `true` if the channel is waiting for the connection to be recovered.
     #[must_use]
     pub fn reconnecting(&self) -> bool {
         self.read().state == ChannelState::Reconnecting
@@ -66,6 +75,7 @@ impl ChannelStatus {
         .contains(&self.read().state)
     }
 
+    /// Returns `true` if publisher confirms are enabled on this channel.
     #[must_use]
     pub fn confirm(&self) -> bool {
         self.read().confirm
@@ -176,14 +186,21 @@ impl ChannelStatus {
     }
 }
 
+/// The lifecycle state of an AMQP channel.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum ChannelState {
+    /// The channel has been created but `Channel.Open` has not been sent yet.
     #[default]
     Initial,
+    /// The channel is waiting for the connection to be recovered after an error.
     Reconnecting,
+    /// The channel is open and ready for AMQP operations.
     Connected,
+    /// `Channel.Close` has been sent; waiting for `Channel.Close-Ok`.
     Closing,
+    /// The channel has been closed normally.
     Closed,
+    /// The channel has been closed due to a protocol error.
     Error,
 }
 

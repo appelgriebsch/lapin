@@ -11,6 +11,11 @@ use std::{
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
+/// The negotiated connection parameters returned by the AMQP handshake.
+///
+/// Obtained from [`Connection::configuration`].
+///
+/// [`Connection::configuration`]: crate::Connection::configuration
 pub struct Configuration {
     pub(crate) amqp_client_properties: FieldTable,
     pub(crate) amqp_locale: ShortString,
@@ -40,16 +45,19 @@ impl Configuration {
         }
     }
 
+    /// Maximum number of channels allowed on this connection (negotiated with the server).
     #[must_use]
     pub fn channel_max(&self) -> ChannelId {
         self.negotiated_config.channel_max()
     }
 
+    /// Maximum AMQP frame size in bytes (negotiated with the server).
     #[must_use]
     pub fn frame_max(&self) -> FrameSize {
         self.negotiated_config.frame_max()
     }
 
+    /// Heartbeat interval in seconds (negotiated with the server). `0` means disabled.
     #[must_use]
     pub fn heartbeat(&self) -> Heartbeat {
         self.negotiated_config.heartbeat()

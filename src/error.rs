@@ -29,22 +29,36 @@ pub struct Error {
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub enum ErrorKind {
+    /// The maximum number of channels allowed on this connection has been reached.
     ChannelsLimitReached,
+    /// The server only supports an AMQP version that this client does not speak.
     InvalidProtocolVersion(ProtocolVersion),
 
+    /// An operation was attempted on a channel number that does not exist.
     InvalidChannel(ChannelId),
+    /// An operation was attempted while the channel was in an incompatible state.
     InvalidChannelState(ChannelState, &'static str),
+    /// An operation was attempted while the connection was in an incompatible state.
     InvalidConnectionState(ConnectionState),
 
+    /// An underlying IO error occurred (e.g. connection reset, broken pipe).
     IOError(Arc<io::Error>),
+    /// The async runtime was shut down while an IO operation was in progress.
     RuntimeShutdownError(Arc<io::Error>),
+    /// The AMQP frame parser encountered malformed data.
     ParsingError(ParserError),
+    /// The broker sent an AMQP error (channel or connection level).
     ProtocolError(AMQPError),
+    /// An AMQP frame could not be serialised.
     SerialisationError(Arc<GenError>),
+    /// The authentication provider returned an error.
     AuthProviderError(String),
+    /// A [`crate::PublisherConfirm`] future was polled after it had already resolved.
     FutureCompleted,
+    /// No default async runtime is available (no runtime feature flag was enabled).
     NoDefaultRuntime,
 
+    /// The broker did not send a heartbeat within the negotiated timeout.
     MissingHeartbeatError,
 }
 
@@ -61,6 +75,7 @@ impl Error {
         }
     }
 
+    /// Return the specific error kind.
     #[must_use]
     pub fn kind(&self) -> &ErrorKind {
         &self.kind
@@ -75,6 +90,7 @@ impl Error {
         self
     }
 
+    /// Returns `true` if this is an IO error with `WouldBlock` kind.
     #[must_use]
     pub fn wouldblock(&self) -> bool {
         if let ErrorKind::IOError(e) = self.kind() {
@@ -84,6 +100,7 @@ impl Error {
         }
     }
 
+    /// Returns `true` if this is an IO error with `Interrupted` kind.
     #[must_use]
     pub fn interrupted(&self) -> bool {
         if let ErrorKind::IOError(e) = self.kind() {
@@ -93,6 +110,8 @@ impl Error {
         }
     }
 
+    /// Returns `true` if this is an [`ErrorKind::IOError`] or
+    /// [`ErrorKind::RuntimeShutdownError`].
     #[must_use]
     pub fn is_io_error(&self) -> bool {
         if let ErrorKind::IOError(_) = self.kind() {
@@ -101,6 +120,7 @@ impl Error {
         self.is_runtime_shutdown_error()
     }
 
+    /// Returns `true` if this is an [`ErrorKind::RuntimeShutdownError`].
     #[must_use]
     pub fn is_runtime_shutdown_error(&self) -> bool {
         if let ErrorKind::RuntimeShutdownError(_) = self.kind() {
@@ -109,6 +129,7 @@ impl Error {
         false
     }
 
+    /// Returns `true` if this is an [`ErrorKind::ProtocolError`].
     #[must_use]
     pub fn is_amqp_error(&self) -> bool {
         if let ErrorKind::ProtocolError(_) = self.kind() {
@@ -117,6 +138,7 @@ impl Error {
         false
     }
 
+    /// Returns `true` if this is a channel-level (soft) AMQP protocol error.
     #[must_use]
     pub fn is_amqp_soft_error(&self) -> bool {
         if let ErrorKind::ProtocolError(e) = self.kind()
@@ -127,6 +149,7 @@ impl Error {
         false
     }
 
+    /// Returns `true` if this is a connection-level (hard) AMQP protocol error.
     #[must_use]
     pub fn is_amqp_hard_error(&self) -> bool {
         if let ErrorKind::ProtocolError(e) = self.kind()
@@ -137,6 +160,12 @@ impl Error {
         false
     }
 
+    /// Returns `true` if automatic recovery can be attempted for this error.
+    ///
+    /// Used internally by the auto-recovery logic. Requires
+    /// [`ConnectionProperties::enable_auto_recover`] to be set.
+    ///
+    /// [`ConnectionProperties::enable_auto_recover`]: crate::ConnectionProperties::enable_auto_recover
     #[must_use]
     pub fn can_be_recovered(&self) -> bool {
         match self.kind() {

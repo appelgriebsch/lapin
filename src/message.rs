@@ -112,9 +112,16 @@ impl Deref for Delivery {
     }
 }
 
+/// A message retrieved via [`Channel::basic_get`].
+///
+/// Contains a [`Delivery`] plus the number of messages remaining in the queue.
+///
+/// [`Channel::basic_get`]: crate::Channel::basic_get
 #[derive(Debug, PartialEq)]
 pub struct BasicGetMessage {
+    /// The message payload and acknowledgement handle.
     pub delivery: Delivery,
+    /// Number of messages remaining in the queue after this one was retrieved.
     pub message_count: MessageCount,
 }
 
@@ -159,10 +166,22 @@ impl DerefMut for BasicGetMessage {
     }
 }
 
+/// A message that was published but could not be routed and was returned by the broker.
+///
+/// Returned messages arise from mandatory or immediate publishes where no binding
+/// matched the routing key. Access them via [`Channel::wait_for_confirms`] or from
+/// the [`Confirmation`] resolved by a [`PublisherConfirm`].
+///
+/// [`Channel::wait_for_confirms`]: crate::Channel::wait_for_confirms
+/// [`Confirmation`]: crate::Confirmation
+/// [`PublisherConfirm`]: crate::PublisherConfirm
 #[derive(Debug, PartialEq)]
 pub struct BasicReturnMessage {
+    /// The returned message payload and metadata.
     pub delivery: Delivery,
+    /// AMQP reply code indicating why the message was returned.
     pub reply_code: ReplyCode,
+    /// Human-readable explanation for the return.
     pub reply_text: ShortString,
 }
 
@@ -184,6 +203,7 @@ impl BasicReturnMessage {
         }
     }
 
+    /// Extract the AMQP error that caused this message to be returned, if any.
     #[must_use]
     pub fn error(&self) -> Option<AMQPError> {
         AMQPError::from_id(self.reply_code, self.reply_text.clone())

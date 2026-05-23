@@ -88,7 +88,12 @@ impl Connection {
         Connect::connect(uri, options).await
     }
 
-    /// Connect to an AMQP Server.
+    /// Connect to an AMQP server with an explicit runtime.
+    ///
+    /// Use this instead of [`connect`] when you need to supply a specific
+    /// `async_rs::Runtime` instance rather than the thread-local default.
+    ///
+    /// [`connect`]: Self::connect
     pub async fn connect_with_runtime<RK: RuntimeKit + Send + Sync + Clone + 'static>(
         uri: &str,
         options: ConnectionProperties,
@@ -98,7 +103,12 @@ impl Connection {
             .await
     }
 
-    /// Connect to an AMQP Server.
+    /// Connect to an AMQP server with an explicit runtime and TLS configuration.
+    ///
+    /// The most flexible entry point: you control both the runtime and the TLS
+    /// settings. Use [`connect`] for the common case.
+    ///
+    /// [`connect`]: Self::connect
     pub async fn connect_with_config<RK: RuntimeKit + Send + Sync + Clone + 'static>(
         uri: &str,
         options: ConnectionProperties,
@@ -108,12 +118,21 @@ impl Connection {
         uri.connect_with_config(options, config, runtime).await
     }
 
-    /// Connect to an AMQP Server.
+    /// Connect to an AMQP server using a pre-parsed [`AMQPUri`].
+    ///
+    /// Equivalent to [`connect`] but accepts an already-parsed URI.
+    ///
+    /// [`connect`]: Self::connect
     pub async fn connect_uri(uri: AMQPUri, options: ConnectionProperties) -> Result<Self> {
         Connect::connect(uri, options).await
     }
 
-    /// Connect to an AMQP Server
+    /// Connect using a pre-parsed [`AMQPUri`] and an explicit runtime.
+    ///
+    /// Combines [`connect_uri`] and [`connect_with_runtime`].
+    ///
+    /// [`connect_uri`]: Self::connect_uri
+    /// [`connect_with_runtime`]: Self::connect_with_runtime
     pub async fn connect_uri_with_runtime<RK: RuntimeKit + Send + Sync + Clone + 'static>(
         uri: AMQPUri,
         options: ConnectionProperties,
@@ -123,7 +142,12 @@ impl Connection {
             .await
     }
 
-    /// Connect to an AMQP Server
+    /// Connect using a pre-parsed [`AMQPUri`], an explicit runtime, and TLS configuration.
+    ///
+    /// Combines [`connect_uri`] and [`connect_with_config`].
+    ///
+    /// [`connect_uri`]: Self::connect_uri
+    /// [`connect_with_config`]: Self::connect_with_config
     pub async fn connect_uri_with_config<RK: RuntimeKit + Send + Sync + Clone + 'static>(
         uri: AMQPUri,
         options: ConnectionProperties,
@@ -133,32 +157,37 @@ impl Connection {
         uri.connect_with_config(options, config, runtime).await
     }
 
-    /// Creates a new [`Channel`] on this connection.
+    /// Open a new [`Channel`] on this connection.
     ///
-    /// This method is only successful if the client is connected.
-    /// Otherwise, [`InvalidConnectionState`] error is returned.
-    ///
-    /// [`Channel`]: ./struct.Channel.html
-    /// [`InvalidConnectionState`]: ./enum.Error.html#variant.InvalidConnectionState
+    /// Channels are lightweight; open one per concurrent logical task. Returns
+    /// an error if the connection is not in the [`crate::ConnectionState::Connected`]
+    /// state or if the channel limit negotiated with the server has been reached.
     pub async fn create_channel(&self) -> Result<Channel> {
         self.status.ensure_connected()?;
         self.internal_rpc.create_channel(self.closer.clone()).await
     }
 
-    /// Get a Stream of connection Events
+    /// Return a [`Stream`] of connection-level [`Event`]s.
+    ///
+    /// Events include connection establishment, broker-initiated flow control,
+    /// and errors. Clone the stream or call this multiple times to fan-out to
+    /// several listeners.
     pub fn events_listener(&self) -> impl Stream<Item = Event> + Send + 'static {
         self.events.listener()
     }
 
-    /// Block current thread while the connection is still active.
-    /// This is useful when you only have a consumer and nothing else keeping your application
-    /// "alive".
+    /// Block the current thread until the connection is closed.
+    ///
+    /// Useful in simple consumer programs where no other work keeps the
+    /// process alive. Drops the connection handle then waits for the
+    /// background IO loop thread to finish.
     pub fn run(self) -> Result<()> {
         let io_loop = self.io_loop.clone();
         drop(self);
         io_loop.wait("io loop")
     }
 
+    /// Return the negotiated connection configuration (frame size, heartbeat, …).
     #[must_use]
     pub fn configuration(&self) -> &Configuration {
         &self.configuration
@@ -168,17 +197,17 @@ impl Connection {
         &mut self.configuration
     }
 
+    /// Return a snapshot of the current connection state.
     #[must_use]
     pub fn status(&self) -> &ConnectionStatus {
         &self.status
     }
 
-    /// Request a connection close.
+    /// Perform a graceful AMQP connection close.
     ///
-    /// This method is only successful if the connection is in the connected state,
-    /// otherwise an [`InvalidConnectionState`] error is returned.
-    ///
-    /// [`InvalidConnectionState`]: ./enum.Error.html#variant.InvalidConnectionState
+    /// Sends `Connection.Close` to the broker and waits for `Connection.Close-Ok`.
+    /// `reply_code` should be `200` and `reply_text` `"OK"` for a normal shutdown.
+    /// Returns an error if the connection is not in [`crate::ConnectionState::Connected`].
     pub async fn close(&self, reply_code: ReplyCode, reply_text: ShortString) -> Result<()> {
         self.status.ensure_connected()?;
         self.internal_rpc
@@ -186,12 +215,23 @@ impl Connection {
             .await
     }
 
-    /// Update the secret used by some authentication module such as OAuth2
+    /// Update the authentication secret (e.g. rotate an OAuth2 token).
+    ///
+    /// Sends `Connection.UpdateSecret` to the broker. `new_secret` is the
+    /// replacement token; `reason` is a human-readable explanation logged by
+    /// the broker. Use [`auth::TokenAuthProvider`] for automatic rotation.
+    ///
+    /// [`auth::TokenAuthProvider`]: crate::auth::TokenAuthProvider
     pub async fn update_secret(&self, new_secret: LongString, reason: ShortString) -> Result<()> {
         self.status.ensure_connected()?;
         self.internal_rpc.update_secret(new_secret, reason).await
     }
 
+    /// Low-level entry point for custom transport implementations.
+    ///
+    /// Drives the AMQP handshake over a transport supplied by the `connect`
+    /// closure. Prefer one of the higher-level `connect*` methods unless you
+    /// are wrapping a non-standard socket type.
     pub async fn connector<RK: RuntimeKit + Clone + Send + 'static>(
         uri: AMQPUri,
         runtime: Runtime<RK>,
@@ -282,10 +322,12 @@ impl fmt::Debug for Connection {
     }
 }
 
-/// Trait providing a method to connect to an AMQP server
+/// Extension trait that lets URI types open a [`Connection`] directly.
+///
+/// Implemented for [`&str`], [`String`], and [`AMQPUri`].
 #[async_trait]
 pub trait Connect {
-    /// connect to an AMQP server
+    /// Connect to an AMQP server using the default runtime and TLS configuration.
     async fn connect(self, options: ConnectionProperties) -> Result<Connection>
     where
         Self: Sized,
@@ -298,7 +340,7 @@ pub trait Connect {
         .await
     }
 
-    /// connect to an AMQP server
+    /// Connect to an AMQP server with an explicit runtime and TLS configuration.
     async fn connect_with_config<RK: RuntimeKit + Send + Sync + Clone + 'static>(
         self,
         options: ConnectionProperties,

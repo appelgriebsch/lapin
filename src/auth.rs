@@ -137,7 +137,10 @@ impl<TP: TokenProvider> AuthProvider for TokenAuthProvider<TP> {
     }
 }
 
-/// Default implementation for OAUth2 token refresh mechanism based on user-supplied callbacks
+/// Default implementation for OAuth2 token refresh mechanism based on user-supplied callbacks.
+///
+/// Wraps two closures: one to report token validity, one to create a new token.
+/// Use [`TokenAuthProvider::from`] to turn this into an [`AuthProvider`].
 ///
 /// # Example
 ///
@@ -145,7 +148,7 @@ impl<TP: TokenProvider> AuthProvider for TokenAuthProvider<TP> {
 /// use lapin::auth::{DefaultTokenProvider, TokenAuthProvider};
 ///
 /// let auth_provider: TokenAuthProvider<_> = DefaultTokenProvider::new(
-///     |_token| None /* never expire */,
+///     |_token| None, // never expire
 ///     || Ok("my new valid token".into()),
 /// ).into();
 /// ```
@@ -164,6 +167,11 @@ impl fmt::Debug for DefaultTokenProvider {
 }
 
 impl DefaultTokenProvider {
+    /// Create a new provider from two closures.
+    ///
+    /// `valid_for` receives the current token and returns how long it is still
+    /// valid, or `None` if it never expires.
+    /// `create_token` is called when a new token is needed.
     pub fn new<
         VF: Fn(&LongString) -> Option<Duration> + Send + Sync + 'static,
         CT: Fn() -> Result<LongString, String> + Send + Sync + 'static,

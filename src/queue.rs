@@ -4,6 +4,11 @@ use crate::{
 };
 use std::borrow::Borrow;
 
+/// Information about an AMQP queue as returned by the server.
+///
+/// Obtained as the return value of [`Channel::queue_declare`].
+///
+/// [`Channel::queue_declare`]: crate::Channel::queue_declare
 #[derive(Clone, Debug)]
 pub struct Queue {
     name: ShortString,
@@ -24,16 +29,19 @@ impl Queue {
         }
     }
 
+    /// The name of the queue.
     #[must_use]
     pub fn name(&self) -> &ShortString {
         &self.name
     }
 
+    /// The number of messages currently in the queue.
     #[must_use]
     pub fn message_count(&self) -> MessageCount {
         self.message_count
     }
 
+    /// The number of active consumers on the queue.
     #[must_use]
     pub fn consumer_count(&self) -> ConsumerCount {
         self.consumer_count

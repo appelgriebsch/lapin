@@ -4,6 +4,11 @@ use std::{
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
+/// Shared, cheaply cloneable view of a connection's current state.
+///
+/// Obtained from [`Connection::status`].
+///
+/// [`Connection::status`]: crate::Connection::status
 #[derive(Clone, Default)]
 pub struct ConnectionStatus(Arc<Inner>);
 
@@ -33,11 +38,13 @@ impl ConnectionStatus {
         self.write().set_reconnecting();
     }
 
+    /// The virtual host this connection is attached to.
     #[must_use]
     pub fn vhost(&self) -> ShortString {
         self.0.vhost.clone()
     }
 
+    /// The username used to authenticate this connection.
     #[must_use]
     pub fn username(&self) -> String {
         self.0.username.clone()
@@ -51,11 +58,13 @@ impl ConnectionStatus {
         self.write().blocked = false;
     }
 
+    /// Returns `true` if the broker has issued a `Connection.Blocked` notice.
     #[must_use]
     pub fn blocked(&self) -> bool {
         self.read().blocked
     }
 
+    /// Returns `true` if the connection is in [`ConnectionState::Connected`].
     #[must_use]
     pub fn connected(&self) -> bool {
         self.state() == ConnectionState::Connected
@@ -68,26 +77,31 @@ impl ConnectionStatus {
         Ok(())
     }
 
+    /// Returns `true` if the connection is in [`ConnectionState::Connecting`].
     #[must_use]
     pub fn connecting(&self) -> bool {
         self.state() == ConnectionState::Connecting
     }
 
+    /// Returns `true` if the connection is in [`ConnectionState::Reconnecting`].
     #[must_use]
     pub fn reconnecting(&self) -> bool {
         self.state() == ConnectionState::Reconnecting
     }
 
+    /// Returns `true` if the connection is in [`ConnectionState::Closing`].
     #[must_use]
     pub fn closing(&self) -> bool {
         self.state() == ConnectionState::Closing
     }
 
+    /// Returns `true` if the connection is in [`ConnectionState::Closed`].
     #[must_use]
     pub fn closed(&self) -> bool {
         self.state() == ConnectionState::Closed
     }
 
+    /// Returns `true` if the connection is in [`ConnectionState::Error`].
     #[must_use]
     pub fn errored(&self) -> bool {
         self.state() == ConnectionState::Error
@@ -110,15 +124,23 @@ impl ConnectionStatus {
     }
 }
 
+/// The lifecycle state of an AMQP connection.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum ConnectionState {
+    /// The connection object has been created but the TCP handshake has not started.
     #[default]
     Initial,
+    /// The TCP connection is open and the AMQP handshake is in progress.
     Connecting,
+    /// The AMQP handshake completed successfully; the connection is ready.
     Connected,
+    /// `Connection.Close` has been sent; waiting for `Connection.Close-Ok`.
     Closing,
+    /// The connection has been closed normally.
     Closed,
+    /// The connection was lost and is being re-established (auto-recovery).
     Reconnecting,
+    /// The connection has been closed due to a protocol or IO error.
     Error,
 }
 

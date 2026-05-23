@@ -1,4 +1,4 @@
-#![deny(missing_debug_implementations, unsafe_code)]
+#![deny(missing_docs, missing_debug_implementations, unsafe_code)]
 #![warn(unreachable_pub, unused_qualifications, unused_lifetimes)]
 #![warn(
     clippy::must_use_candidate,
@@ -6,107 +6,143 @@
     clippy::panic_in_result_fn
 )]
 
-//! lapin
+//! An async AMQP 0-9-1 client library targeting RabbitMQ.
 //!
-//! This project follows the AMQP 0.9.1 specifications, targeting especially RabbitMQ.
+//! # Core concepts
 //!
-//! The main access point is the [`Channel`], which contains the individual
-//! AMQP methods. As to the AMQP specification, one TCP [`Connection`] can contain
-//! multiple channels.
+//! **[`Connection`]** — a single TCP socket to the broker. One process
+//! typically creates one connection and reuses it throughout its lifetime.
 //!
-//! ## Feature switches
+//! **[`Channel`]** — a lightweight virtual connection multiplexed over a
+//! [`Connection`]. All AMQP operations (declaring queues, publishing,
+//! consuming, …) are performed through channels. Open as many as you need;
+//! they are cheap.
 //!
-//! * `codegen`: generate code instead of using pregenerated one
-//! * `native-tls`: enable amqps support through native-tls (preferred over rustls when set)
-//! * `openssl`: enable amqps support through openssl (preferred over rustls when set)
-//! * `rustls` (*default*): enable amqps support through rustls (uses rustls-platform-verifier by default)
-//! * `rustls-platform-verifier`: same as rustls, but ensure we'll still use rustls-platform-verifier even if the default for rustls changes
-//! * `rustls-native-certs`: same as rustls but using rustls-native-certs instead of rustls-platform-verifier
-//! * `rustls-webpki-roots-certs`: same as rustls but using webkit-roots instead of rustls-platform-verifier
+//! **[`Consumer`]** — an async `Stream` of [`message::Delivery`] values
+//! obtained by calling [`Channel::basic_consume`]. Each delivery must be
+//! explicitly acknowledged once processed.
 //!
-//! ## Example
+//! **[`PublisherConfirm`]** — a future returned by [`Channel::basic_publish`]
+//! that resolves to a [`Confirmation`] once the broker has acknowledged the
+//! message (requires [`Channel::confirm_select`]).
+//!
+//! # Quick start
 //!
 //! ```rust,no_run
-//! use async_rs::traits::*;
 //! use futures_lite::stream::StreamExt;
 //! use lapin::{
-//!     options::*, Confirmation, types::FieldTable, BasicProperties, Connection,
+//!     options::*, types::FieldTable, BasicProperties, Connection,
 //!     ConnectionProperties, Result,
 //! };
-//! use tracing::info;
 //!
 //! fn main() -> Result<()> {
-//!     if std::env::var("RUST_LOG").is_err() {
-//!         unsafe { std::env::set_var("RUST_LOG", "info") };
-//!     }
-//!
-//!     tracing_subscriber::fmt::init();
-//!
-//!     let addr = std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://127.0.0.1:5672/%2f".into());
+//!     let addr = std::env::var("AMQP_ADDR")
+//!         .unwrap_or_else(|_| "amqp://127.0.0.1:5672/%2f".into());
 //!     let runtime = lapin::runtime::default_runtime()?;
 //!
 //!     runtime.clone().block_on(async move {
-//!         let conn = Connection::connect_with_runtime(
-//!             &addr,
-//!             ConnectionProperties::default(),
-//!             runtime.clone(),
-//!         )
-//!         .await?;
+//!         let conn = Connection::connect(&addr, ConnectionProperties::default()).await?;
 //!
-//!         info!("CONNECTED");
+//!         let channel = conn.create_channel().await?;
 //!
-//!         let channel_a = conn.create_channel().await?;
-//!         let channel_b = conn.create_channel().await?;
-//!
-//!         let queue = channel_a
-//!             .queue_declare(
-//!                 "hello".into(),
-//!                 QueueDeclareOptions::durable(),
-//!                 FieldTable::default(),
-//!             )
+//!         channel
+//!             .queue_declare("hello", QueueDeclareOptions::durable(), FieldTable::default())
 //!             .await?;
 //!
-//!         info!(?queue, "Declared queue");
+//!         channel
+//!             .basic_publish(
+//!                 "",
+//!                 "hello",
+//!                 BasicPublishOptions::default(),
+//!                 b"Hello, world!",
+//!                 BasicProperties::default(),
+//!             )
+//!             .await?
+//!             .await?;
 //!
-//!         let mut consumer = channel_b
+//!         let mut consumer = channel
 //!             .basic_consume(
-//!                 "hello".into(),
-//!                 "my_consumer".into(),
+//!                 "hello",
+//!                 "my_consumer",
 //!                 BasicConsumeOptions::default(),
 //!                 FieldTable::default(),
 //!             )
 //!             .await?;
-//!         runtime.spawn(async move {
-//!             info!("will consume");
-//!             while let Some(delivery) = consumer.next().await {
-//!                 let delivery = delivery.expect("error in consumer");
-//!                 delivery
-//!                     .ack(BasicAckOptions::default())
-//!                     .await
-//!                     .expect("ack");
-//!             }
-//!         });
 //!
-//!         let payload = b"Hello world!";
-//!
-//!         loop {
-//!             let confirm = channel_a
-//!                 .basic_publish(
-//!                     "".into(),
-//!                     "hello".into(),
-//!                     BasicPublishOptions::default(),
-//!                     payload,
-//!                     BasicProperties::default(),
-//!                 )
-//!                 .await?
-//!                 .await?;
-//!             assert_eq!(confirm, Confirmation::NotRequested);
+//!         while let Some(delivery) = consumer.next().await {
+//!             let delivery = delivery?;
+//!             delivery.ack(BasicAckOptions::default()).await?;
 //!         }
+//!         Ok(())
 //!     })
 //! }
 //! ```
-//! [`Channel`]: ./struct.Channel.html
-//! [`Connection`]: ./struct.Connection.html
+//!
+//! # Automatic connection recovery
+//!
+//! Enable recovery in [`ConnectionProperties`] to automatically reconnect and
+//! replay topology (exchanges, queues, bindings, consumers) after a network
+//! failure:
+//!
+//! ```rust,no_run
+//! use lapin::ConnectionProperties;
+//!
+//! let props = ConnectionProperties::default().enable_auto_recover();
+//! // then pass `props` to Connection::connect(…)
+//! ```
+//!
+//! After catching an error from a channel operation, call
+//! [`Channel::wait_for_recovery`] to block until the connection has been
+//! re-established:
+//!
+//! ```rust,no_run
+//! # use lapin::{Channel, Error, Result};
+//! # async fn example(channel: Channel, error: Error) -> Result<()> {
+//! channel.wait_for_recovery(error).await?;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! # Feature flags
+//!
+//! ## Async runtime (pick exactly one)
+//!
+//! | Flag | Notes |
+//! |------|-------|
+//! | `tokio` *(default)* | Requires a Tokio runtime |
+//! | `smol` | Uses the smol executor |
+//! | `async-global-executor` | Uses async-global-executor |
+//!
+//! ## TLS backend (pick at most one; `rustls` is the default)
+//!
+//! | Flag | Notes |
+//! |------|-------|
+//! | `rustls` *(default)* | TLS via rustls |
+//! | `native-tls` | TLS via the platform's native library |
+//! | `openssl` | TLS via OpenSSL |
+//!
+//! ## Rustls certificate store (only when `rustls` is active)
+//!
+//! | Flag | Notes |
+//! |------|-------|
+//! | `rustls-platform-verifier` *(default)* | Uses the platform trust store |
+//! | `rustls-native-certs` | Loads native root certificates |
+//! | `rustls-webpki-roots-certs` | Uses the webpki bundled root set |
+//!
+//! ## Rustls crypto provider (at least one must be enabled)
+//!
+//! | Flag | Notes |
+//! |------|-------|
+//! | `rustls--aws_lc_rs` *(default)* | Uses aws-lc-rs |
+//! | `rustls--ring` | Uses ring (more portable) |
+//!
+//! ## Miscellaneous
+//!
+//! | Flag | Notes |
+//! |------|-------|
+//! | `hickory-dns` | Use hickory-dns for name resolution |
+//! | `codegen` | Force code regeneration at build time |
+//! | `verbose-errors` | More detailed AMQP parser error messages |
 
 pub use amq_protocol::{
     protocol::{self, BasicProperties},
@@ -129,8 +165,11 @@ pub use exchange::ExchangeKind;
 pub use publisher_confirm::{Confirmation, PublisherConfirm};
 pub use queue::Queue;
 
+/// Authentication providers and helpers for connecting to RabbitMQ.
 pub mod auth;
+/// AMQP message types delivered to consumers.
 pub mod message;
+/// Runtime selection and helpers.
 pub mod runtime;
 
 use promise::{Promise, PromiseResolver};

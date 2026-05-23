@@ -22,9 +22,16 @@ use std::{
 };
 use tracing::{error, trace};
 
+/// Callback-based alternative to polling a [`Consumer`] stream.
+///
+/// Implement this trait and pass your implementation to `Consumer::set_delegate`
+/// to have deliveries dispatched automatically instead of polling the stream.
+/// Any `async Fn(DeliveryResult) -> ()` closure also implements this trait.
 pub trait ConsumerDelegate: Send + Sync {
+    /// Called for each new delivery (or cancellation / error) from the server.
     fn on_new_delivery(&self, delivery: DeliveryResult)
     -> Pin<Box<dyn Future<Output = ()> + Send>>;
+    /// Called when the consumer is asked to discard any buffered messages (e.g. on channel close).
     fn drop_prefetched_messages(&self) -> Pin<Box<dyn Future<Output = ()> + Send>> {
         Box::pin(future::ready(()))
     }
