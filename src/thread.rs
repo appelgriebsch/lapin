@@ -34,7 +34,13 @@ impl ThreadHandle {
             match handle.join() {
                 Ok(res) => return res,
                 Err(e) => {
-                    error!(%context, "Failed waiting for thread");
+                    if let Some(msg) = e.downcast_ref::<&str>() {
+                        error!(%context, panic = msg, "Thread panicked");
+                    } else if let Some(msg) = e.downcast_ref::<String>() {
+                        error!(%context, panic = msg.as_str(), "Thread panicked");
+                    } else {
+                        error!(%context, "Thread panicked with unknown payload");
+                    }
                     panic::resume_unwind(e);
                 }
             }
