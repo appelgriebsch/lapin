@@ -82,9 +82,7 @@ impl AuthProvider for DefaultAuthProvider {
             ));
         }
 
-        if String::from_utf8_lossy(challenge.as_bytes())
-            != self.credentials.rabbit_cr_demo_challenge()
-        {
+        if challenge.as_bytes() != self.credentials.rabbit_cr_demo_challenge().as_bytes() {
             return Err(format!(
                 "{0}: received invalid challenge '{challenge}'",
                 self.mechanism,
