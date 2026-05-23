@@ -1,3 +1,10 @@
+### 4.8.0 (2026-05-23)
+
+#### Bug Fixes
+
+* Prevent possible (unlikely) race condition in notifier
+* Use saturating arithmetics as much as possible
+
 ### 4.7.4 (2026-05-12)
 
 #### Misc

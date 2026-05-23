@@ -1,6 +1,6 @@
 [package]
 name = "lapin"
-version = "4.7.4"
+version = "4.8.0"
 edition = "2024"
 authors = ["Geoffroy Couprie <geo.couprie@gmail.com>", "Marc-Antoine Perennou <Marc-Antoine@Perennou.com>"]
 description = "AMQP client library"
@@ -39,7 +39,7 @@ rustls--aws_lc_rs         = ["amq-protocol/rustls--aws_lc_rs"] # default, but do
 rustls--ring              = ["amq-protocol/rustls--ring"] # more compatible, (e.g., easily builds on Windows)
 
 [build-dependencies.amq-protocol-codegen]
-version = "^10.2"
+version = "^10.4"
 optional = true
 
 [build-dependencies.serde_json]
@@ -54,7 +54,7 @@ futures-core = "^0.3"
 futures-io = "^0.3"
 
 [dependencies.amq-protocol]
-version = "^10.2"
+version = "^10.4"
 default-features = false
 
 [dependencies.async-rs]
