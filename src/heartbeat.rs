@@ -119,7 +119,7 @@ impl Inner {
 
         // The value stored in timeout is half the configured heartbeat value as the spec recommends to send heartbeats at twice the configured pace.
         // The specs tells us to close the connection after twice the configured interval has passed.
-        if Instant::now().duration_since(self.last_read) > 4 * timeout {
+        if Instant::now().duration_since(self.last_read) > timeout.saturating_mul(4) {
             error!(
                 "We haven't received anything from the server for too long, closing connection."
             );

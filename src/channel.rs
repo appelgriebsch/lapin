@@ -443,9 +443,10 @@ impl Channel {
             AMQPFrame::Header(self.id, header),
         ];
 
+        let chunk_size = (frame_max as usize).saturating_sub(8 /* An empty body frame weighs 8 bytes of overhead that we cannot use for payload */).max(1);
         frames.extend(
             payload
-                .chunks(frame_max as usize - 8 /* An empty body frame weighs 8 bytes of overhead that we cannot use for payload */)
+                .chunks(chunk_size)
                 .map(|chunk| AMQPFrame::Body(self.id, chunk.into())),
         );
 
