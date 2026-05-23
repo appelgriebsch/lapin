@@ -1,3 +1,9 @@
+### 4.9.0 (2026-05-23)
+
+#### Features
+
+* Documentation overhaul
+
 ### 4.8.0 (2026-05-23)
 
 #### Bug Fixes
