@@ -33,9 +33,14 @@ impl Future for Notifier {
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         if self.ready() {
+            return Poll::Ready(());
+        }
+        self.wakers.register(cx.waker());
+        // Re-check after registering to close the lost-wakeup window between the
+        // first check and the waker registration.
+        if self.ready() {
             Poll::Ready(())
         } else {
-            self.wakers.register(cx.waker());
             Poll::Pending
         }
     }
