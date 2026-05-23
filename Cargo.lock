@@ -1380,7 +1380,6 @@ dependencies = [
  "amq-protocol-codegen",
  "async-rs",
  "async-trait",
- "atomic-waker",
  "backon",
  "cfg-if",
  "event-listener",

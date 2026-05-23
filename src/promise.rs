@@ -1,5 +1,4 @@
-use crate::{Error, Result};
-use atomic_waker::AtomicWaker;
+use crate::{Error, Result, listener::Listener};
 use std::{
     fmt,
     future::Future,
@@ -13,6 +12,7 @@ use tracing::{Level, level_enabled, trace};
 #[must_use = "Promise should be used or you can miss errors"]
 pub(crate) struct Promise<T> {
     shared: Arc<Shared<T>>,
+    listener: Listener,
 }
 
 impl<T> fmt::Debug for Promise<T> {
@@ -32,17 +32,19 @@ impl<T> Drop for Promise<T> {
 
 impl<T> Promise<T> {
     pub(crate) fn new(marker: &str) -> (Self, PromiseResolver<T>) {
-        let promise = Self {
-            shared: Shared::new(None, marker),
-        };
+        let promise = Self::build(marker, None);
         let resolver = promise.resolver();
         (promise, resolver)
     }
 
     pub(crate) fn new_with_data(marker: &str, data: Result<T>) -> Self {
-        Self {
-            shared: Shared::new(Some(data), marker),
-        }
+        Self::build(marker, Some(data))
+    }
+
+    fn build(marker: &str, data: Option<Result<T>>) -> Self {
+        let shared = Shared::new(data, marker);
+        let listener = shared.listener.clone();
+        Self { shared, listener }
     }
 
     pub(crate) fn try_wait(&self) -> Option<Result<T>> {
@@ -59,17 +61,17 @@ impl<T> Promise<T> {
 impl<T> Future for Promise<T> {
     type Output = Result<T>;
 
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        // Fast path: already resolved.
-        if let Some(data) = self.shared.take() {
-            return Poll::Ready(data);
-        }
-        // Register the waker before the second check so we don't miss a
-        // wakeup that arrives between the two take() calls.
-        self.shared.waker.register(cx.waker());
-        match self.shared.take() {
-            Some(data) => Poll::Ready(data),
-            None => Poll::Pending,
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        loop {
+            self.listener.arm();
+            if let Some(data) = self.shared.take() {
+                self.listener.disarm();
+                return Poll::Ready(data);
+            }
+            match self.listener.poll(cx) {
+                Poll::Ready(()) => {}
+                Poll::Pending => return Poll::Pending,
+            }
         }
     }
 }
@@ -122,21 +124,21 @@ impl<T> Cancelable for PromiseResolver<T> {
 
 struct Shared<T> {
     data: Mutex<Option<Result<T>>>,
-    waker: AtomicWaker,
+    listener: Listener,
     marker: Option<String>,
 }
 
-// AtomicWaker uses UnsafeCell internally, which opts out of RefUnwindSafe by
-// default. The only panic vector inside AtomicWaker is Waker::clone(); if that
-// panics, the waker's atomic state machine gets stuck. This is not a broke
-// invariant that could cause further unsoundness in code that catches the unwind.
+// Listener wraps event-listener::Event which uses UnsafeCell internally, opting
+// out of RefUnwindSafe by default. The only panic vector is Waker::wake() inside
+// notify(); if it panics the waiting task is not woken, but the data is already
+// written before notify() is called so a subsequent poll will find it.
 impl<T> RefUnwindSafe for Shared<T> where Result<T>: RefUnwindSafe {}
 
 impl<T> Shared<T> {
     fn new(data: Option<Result<T>>, marker: &str) -> Arc<Self> {
         Arc::new(Self {
             data: Mutex::new(data),
-            waker: AtomicWaker::new(),
+            listener: Listener::default(),
             marker: if level_enabled!(Level::TRACE) {
                 Some(marker.into())
             } else {
@@ -152,7 +154,7 @@ impl<T> Shared<T> {
             // Release the lock before waking to avoid the woken task
             // immediately blocking on it.
             drop(lock);
-            self.waker.wake();
+            self.listener.notify();
         }
     }
 
