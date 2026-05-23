@@ -36,13 +36,13 @@ async fn main() -> Result<()> {
     let channel = conn.create_channel().await?;
 
     channel
-        .queue_declare("hello", QueueDeclareOptions::durable(), FieldTable::default())
+        .queue_declare("hello".into(), QueueDeclareOptions::durable(), FieldTable::default())
         .await?;
 
     channel
         .basic_publish(
-            "",
-            "hello",
+            "".into(),
+            "hello".into(),
             BasicPublishOptions::default(),
             b"Hello, world!",
             BasicProperties::default(),
@@ -52,8 +52,8 @@ async fn main() -> Result<()> {
 
     let mut consumer = channel
         .basic_consume(
-            "hello",
-            "my_consumer",
+            "hello".into(),
+            "my_consumer".into(),
             BasicConsumeOptions::default(),
             FieldTable::default(),
         )

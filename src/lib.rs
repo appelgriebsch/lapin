@@ -29,6 +29,7 @@
 //! # Quick start
 //!
 //! ```rust,no_run
+//! use async_rs::traits::Executor;
 //! use futures_lite::stream::StreamExt;
 //! use lapin::{
 //!     options::*, types::FieldTable, BasicProperties, Connection,
@@ -46,13 +47,13 @@
 //!         let channel = conn.create_channel().await?;
 //!
 //!         channel
-//!             .queue_declare("hello", QueueDeclareOptions::durable(), FieldTable::default())
+//!             .queue_declare("hello".into(), QueueDeclareOptions::durable(), FieldTable::default())
 //!             .await?;
 //!
 //!         channel
 //!             .basic_publish(
-//!                 "",
-//!                 "hello",
+//!                 "".into(),
+//!                 "hello".into(),
 //!                 BasicPublishOptions::default(),
 //!                 b"Hello, world!",
 //!                 BasicProperties::default(),
@@ -62,8 +63,8 @@
 //!
 //!         let mut consumer = channel
 //!             .basic_consume(
-//!                 "hello",
-//!                 "my_consumer",
+//!                 "hello".into(),
+//!                 "my_consumer".into(),
 //!                 BasicConsumeOptions::default(),
 //!                 FieldTable::default(),
 //!             )
