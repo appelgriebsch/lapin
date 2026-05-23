@@ -1,3 +1,9 @@
+### 4.9.1 (2026-05-23)
+
+#### Bug Fixes
+
+* Fix some doc-comments
+
 ### 4.9.0 (2026-05-23)
 
 #### Features
