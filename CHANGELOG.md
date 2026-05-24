@@ -1,3 +1,13 @@
+### 4.10.0 (2026-05-24)
+
+#### Features
+
+* Documentation iprovements
+
+#### Misc
+
+* switch to `event-listener` for internal synchronisation
+
 ### 4.9.1 (2026-05-23)
 
 #### Bug Fixes
