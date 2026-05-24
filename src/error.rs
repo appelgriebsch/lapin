@@ -93,71 +93,44 @@ impl Error {
     /// Returns `true` if this is an IO error with `WouldBlock` kind.
     #[must_use]
     pub fn wouldblock(&self) -> bool {
-        if let ErrorKind::IOError(e) = self.kind() {
-            e.kind() == io::ErrorKind::WouldBlock
-        } else {
-            false
-        }
+        matches!(self.kind(), ErrorKind::IOError(e) if e.kind() == io::ErrorKind::WouldBlock)
     }
 
     /// Returns `true` if this is an IO error with `Interrupted` kind.
     #[must_use]
     pub fn interrupted(&self) -> bool {
-        if let ErrorKind::IOError(e) = self.kind() {
-            e.kind() == io::ErrorKind::Interrupted
-        } else {
-            false
-        }
+        matches!(self.kind(), ErrorKind::IOError(e) if e.kind() == io::ErrorKind::Interrupted)
     }
 
     /// Returns `true` if this is an [`ErrorKind::IOError`] or
     /// [`ErrorKind::RuntimeShutdownError`].
     #[must_use]
     pub fn is_io_error(&self) -> bool {
-        if let ErrorKind::IOError(_) = self.kind() {
-            return true;
-        }
-        self.is_runtime_shutdown_error()
+        matches!(self.kind(), ErrorKind::IOError(_)) || self.is_runtime_shutdown_error()
     }
 
     /// Returns `true` if this is an [`ErrorKind::RuntimeShutdownError`].
     #[must_use]
     pub fn is_runtime_shutdown_error(&self) -> bool {
-        if let ErrorKind::RuntimeShutdownError(_) = self.kind() {
-            return true;
-        }
-        false
+        matches!(self.kind(), ErrorKind::RuntimeShutdownError(_))
     }
 
     /// Returns `true` if this is an [`ErrorKind::ProtocolError`].
     #[must_use]
     pub fn is_amqp_error(&self) -> bool {
-        if let ErrorKind::ProtocolError(_) = self.kind() {
-            return true;
-        }
-        false
+        matches!(self.kind(), ErrorKind::ProtocolError(_))
     }
 
     /// Returns `true` if this is a channel-level (soft) AMQP protocol error.
     #[must_use]
     pub fn is_amqp_soft_error(&self) -> bool {
-        if let ErrorKind::ProtocolError(e) = self.kind()
-            && let AMQPErrorKind::Soft(_) = e.kind()
-        {
-            return true;
-        }
-        false
+        matches!(self.kind(), ErrorKind::ProtocolError(e) if matches!(e.kind(), AMQPErrorKind::Soft(_)))
     }
 
     /// Returns `true` if this is a connection-level (hard) AMQP protocol error.
     #[must_use]
     pub fn is_amqp_hard_error(&self) -> bool {
-        if let ErrorKind::ProtocolError(e) = self.kind()
-            && let AMQPErrorKind::Hard(_) = e.kind()
-        {
-            return true;
-        }
-        false
+        matches!(self.kind(), ErrorKind::ProtocolError(e) if matches!(e.kind(), AMQPErrorKind::Hard(_)))
     }
 
     /// Returns `true` if automatic recovery can be attempted for this error.

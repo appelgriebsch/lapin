@@ -1,16 +1,14 @@
 use crate::{
     exchange::ExchangeKind,
     options::{ExchangeDeclareOptions, QueueDeclareOptions},
+    shared::SharedMutex,
     topology::{ExchangeDefinition, QueueDefinition},
     types::{FieldTable, ShortString},
 };
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex, MutexGuard},
-};
+use std::{collections::HashMap, sync::MutexGuard};
 
 #[derive(Clone, Default)]
-pub(crate) struct Registry(Arc<Mutex<Inner>>);
+pub(crate) struct Registry(SharedMutex<Inner>);
 
 impl Registry {
     pub(crate) fn exchanges_topology(&self) -> Vec<ExchangeDefinition> {
@@ -117,7 +115,7 @@ impl Registry {
     }
 
     fn lock_inner(&self) -> MutexGuard<'_, Inner> {
-        self.0.lock().unwrap_or_else(|e| e.into_inner())
+        self.0.lock()
     }
 }
 

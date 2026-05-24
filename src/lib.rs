@@ -216,6 +216,7 @@ mod queue;
 mod registry;
 mod returned_messages;
 mod secret_update;
+mod shared;
 mod socket_state;
 mod thread;
 mod topology;

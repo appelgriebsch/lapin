@@ -3,6 +3,7 @@ use crate::{
     consumer::Consumer,
     error_holder::ErrorHolder,
     message::Delivery,
+    shared::SharedRwLock,
     types::{PayloadSize, ShortString},
 };
 use std::{
@@ -10,13 +11,13 @@ use std::{
     collections::HashMap,
     fmt,
     hash::Hash,
-    sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
+    sync::{RwLockReadGuard, RwLockWriteGuard},
 };
 
 type Inner = HashMap<ShortString, Consumer>;
 
 #[derive(Clone, Default)]
-pub(crate) struct Consumers(Arc<RwLock<Inner>>);
+pub(crate) struct Consumers(SharedRwLock<Inner>);
 
 impl Consumers {
     pub(crate) fn register(&self, tag: ShortString, consumer: Consumer) {
@@ -112,18 +113,18 @@ impl Consumers {
     }
 
     fn read(&self) -> RwLockReadGuard<'_, Inner> {
-        self.0.read().unwrap_or_else(|e| e.into_inner())
+        self.0.read()
     }
 
     fn write(&self) -> RwLockWriteGuard<'_, Inner> {
-        self.0.write().unwrap_or_else(|e| e.into_inner())
+        self.0.write()
     }
 }
 
 impl fmt::Debug for Consumers {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut debug = f.debug_tuple("Consumers");
-        if let Ok(consumers) = self.0.try_read() {
+        if let Some(consumers) = self.0.try_read() {
             debug.field(&*consumers);
         }
         debug.finish()

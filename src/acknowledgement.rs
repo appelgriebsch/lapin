@@ -4,26 +4,20 @@ use crate::{
     protocol::{AMQPError, AMQPSoftError},
     publisher_confirm::{Confirmation, PublisherConfirm},
     returned_messages::ReturnedMessages,
+    shared::SharedMutex,
     types::DeliveryTag,
 };
-use std::{
-    collections::HashMap,
-    fmt,
-    sync::{Arc, Mutex, MutexGuard},
-};
+use std::{collections::HashMap, fmt, sync::MutexGuard};
 use tracing::trace;
 
 #[derive(Clone)]
-pub(crate) struct Acknowledgements(Arc<Mutex<Inner>>);
+pub(crate) struct Acknowledgements(SharedMutex<Inner>);
 
 type AMQPResult = Result<(), AMQPError>;
 
 impl Acknowledgements {
     pub(crate) fn new(channel_id: u16, returned_messages: ReturnedMessages) -> Self {
-        Self(Arc::new(Mutex::new(Inner::new(
-            channel_id,
-            returned_messages,
-        ))))
+        Self(SharedMutex::new(Inner::new(channel_id, returned_messages)))
     }
 
     pub(crate) fn register_pending(&self) -> PublisherConfirm {
@@ -69,14 +63,14 @@ impl Acknowledgements {
     }
 
     fn lock_inner(&self) -> MutexGuard<'_, Inner> {
-        self.0.lock().unwrap_or_else(|e| e.into_inner())
+        self.0.lock()
     }
 }
 
 impl fmt::Debug for Acknowledgements {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut debug = f.debug_struct("Acknowledgements");
-        if let Ok(inner) = self.0.try_lock() {
+        if let Some(inner) = self.0.try_lock() {
             debug
                 .field("delivery_tag", &inner.delivery_tag)
                 .field("returned_messages", &inner.returned_messages)
