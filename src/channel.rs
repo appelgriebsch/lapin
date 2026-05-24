@@ -36,6 +36,24 @@ use tracing::{error, info, trace};
 ///
 /// See also the RabbitMQ documentation on [channels](https://www.rabbitmq.com/channels.html).
 ///
+/// # Sharing channels across threads
+///
+/// The AMQP specification and RabbitMQ both officially discourage sharing a
+/// channel across threads: the intent is that each OS thread owns its own
+/// channel exclusively.
+///
+/// Rust's async ecosystem changes the picture. Futures and tasks are *green
+/// threads* that are not pinned to a particular OS thread; work-stealing
+/// executors (such as Tokio's multi-threaded runtime) can migrate a task to a
+/// different OS thread between any two `.await` points. This means that even
+/// code that never deliberately shares a channel would violate the
+/// one-channel-per-thread rule under a work-stealing executor.
+///
+/// Lapin accounts for this: `Channel` is `Clone + Send + Sync` and all
+/// internal state is protected by the appropriate synchronisation primitives.
+/// It is therefore safe to clone a `Channel` and use the clones from different
+/// tasks — or from different OS threads — concurrently.
+///
 /// [`Connection`]: ./struct.Connection.html
 /// [`Connection::create_channel`]: ./struct.Connection.html#method.create_channel
 #[derive(Clone)]
