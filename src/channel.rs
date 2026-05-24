@@ -32,7 +32,7 @@ use tracing::{error, info, trace};
 /// Main entry point for most AMQP operations.
 ///
 /// It serves as a lightweight connection and can be obtained from a
-///  [`Connection`] by calling [`Connection::create_channel`].
+/// [`Connection`] by calling [`Connection::create_channel`].
 ///
 /// See also the RabbitMQ documentation on [channels](https://www.rabbitmq.com/channels.html).
 ///
@@ -53,9 +53,6 @@ use tracing::{error, info, trace};
 /// internal state is protected by the appropriate synchronisation primitives.
 /// It is therefore safe to clone a `Channel` and use the clones from different
 /// tasks — or from different OS threads — concurrently.
-///
-/// [`Connection`]: ./struct.Connection.html
-/// [`Connection::create_channel`]: ./struct.Connection.html#method.create_channel
 #[derive(Clone)]
 pub struct Channel {
     id: ChannelId,

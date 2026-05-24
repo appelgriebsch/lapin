@@ -58,24 +58,24 @@ impl<
 /// [basic.get](https://www.rabbitmq.com/amqp-0-9-1-quickref.html#basic.get) command, which
 /// retrieves only a single message.
 ///
-/// A consumer is obtained by calling [`Channel::basic_consume`] with the queue name.
+/// A consumer is obtained by calling [`Channel::basic_consume`](crate::Channel::basic_consume) with the queue name.
 ///
 /// New messages from this consumer can be accessed by obtaining the iterator from the consumer.
 /// This iterator returns new messages and the associated channel in the form of a
 /// [`DeliveryResult`] for as long as the consumer is subscribed to the queue.
 ///
-/// It is also possible to set a delegate to be spawned via [`set_delegate`].
+/// It is also possible to set a delegate to be spawned via [`set_delegate`](Consumer::set_delegate).
 ///
 /// ## Message acknowledgment
 ///
 /// There are two ways of acknowledging a message:
 ///
-/// * If the flag [`BasicConsumeOptions::no_ack`] is set to `true` while obtaining the consumer from
-///   [`Channel::basic_consume`], the server implicitely acknowledges each message after it has been
+/// * If the flag [`BasicConsumeOptions::no_ack`](crate::options::BasicConsumeOptions::no_ack) is set to `true` while obtaining the consumer from
+///   [`Channel::basic_consume`](crate::Channel::basic_consume), the server implicitely acknowledges each message after it has been
 ///   sent.
-/// * If the flag [`BasicConsumeOptions::no_ack`] is set to `false`, a message has to be explicitly
-///   acknowledged or rejected with [`Acker::ack`],
-///   [`Acker::nack`] or [`Acker::reject`]. See the documentation at [`Delivery`]
+/// * If the flag [`BasicConsumeOptions::no_ack`](crate::options::BasicConsumeOptions::no_ack) is set to `false`, a message has to be explicitly
+///   acknowledged or rejected with [`Acker::ack`](crate::Acker::ack),
+///   [`Acker::nack`](crate::Acker::nack) or [`Acker::reject`](crate::Acker::reject). See the documentation at [`Delivery`]
 ///   for further information.
 ///
 /// Also see the RabbitMQ documentation about
@@ -83,7 +83,7 @@ impl<
 ///
 /// ## Consumer Prefetch
 ///
-/// To limit the maximum number of unacknowledged messages arriving, you can call [`Channel::basic_qos`]
+/// To limit the maximum number of unacknowledged messages arriving, you can call [`Channel::basic_qos`](crate::Channel::basic_qos)
 /// before creating the consumer.
 ///
 /// Also see the RabbitMQ documentation about
@@ -91,9 +91,8 @@ impl<
 ///
 /// ## Cancel subscription
 ///
-/// To stop receiving messages, call [`Channel::basic_cancel`] with the consumer tag of this
+/// To stop receiving messages, call [`Channel::basic_cancel`](crate::Channel::basic_cancel) with the consumer tag of this
 /// consumer.
-///
 ///
 /// ## Example
 /// ```rust,no_run
@@ -133,16 +132,6 @@ impl<
 ///     })
 /// }
 /// ```
-///
-/// [`Channel::basic_consume`]: ./struct.Channel.html#method.basic_consume
-/// [`Channel::basic_qos`]: ./struct.Channel.html#method.basic_qos
-/// [`Channel::basic_cancel`]: ./struct.Channel.html#method.basic_cancel
-/// [`Acker::ack`]: ./struct.Acker.html#method.ack
-/// [`Acker::reject`]: ./struct.Acker.html#method.reject
-/// [`Acker::nack`]: ./struct.Acker.html#method.nack
-/// [`DeliveryResult`]: ./message/type.DeliveryResult.html
-/// [`BasicConsumeOptions::no_ack`]: ./options/struct.BasicConsumeOptions.html#structfield.no_ack
-/// [`set_delegate`]: #method.set_delegate
 #[derive(Clone)]
 pub struct Consumer {
     consumer_tag: ShortString,

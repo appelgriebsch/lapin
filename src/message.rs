@@ -22,10 +22,6 @@ pub type DeliveryResult = Result<Option<Delivery>>;
 /// The message has to be acknowledged after processing by calling
 /// [`Acker::ack`], [`Acker::nack`] or [`Acker::reject`].
 /// (Multiple acknowledgments are also possible).
-///
-/// [`Acker::ack`]: ../struct.Acker.html#method.ack
-/// [`Acker::nack`]: ../struct.Acker.html#method.nack
-/// [`Acker::reject`]: ../struct.Acker.html#method.reject
 #[derive(Debug, PartialEq)]
 pub struct Delivery {
     /// The delivery tag of the message. Use this for

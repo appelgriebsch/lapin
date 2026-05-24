@@ -27,15 +27,11 @@ use tracing::trace;
 
 /// A TCP connection to the AMQP server.
 ///
-/// To connect to the server, one of the [`connect`] methods has to be called.
+/// To connect to the server, one of the [`connect`](Connection::connect) methods has to be called.
 ///
-/// Afterwards, create a [`Channel`] by calling [`create_channel`].
+/// Afterwards, create a [`Channel`] by calling [`create_channel`](Connection::create_channel).
 ///
 /// Also see the RabbitMQ documentation on [connections](https://www.rabbitmq.com/connections.html).
-///
-/// [`connect`]: ./struct.Connection.html#method.connect
-/// [`Channel`]: ./struct.Channel.html
-/// [`create_channel`]: ./struct.Connection.html#method.create_channel
 pub struct Connection {
     configuration: Configuration,
     status: ConnectionStatus,
