@@ -400,6 +400,11 @@ mod tests {
     };
 
     fn create_connection() -> (Connection, Channels, InternalRPCHandle) {
+        let (conn, channels, internal_rpc, _) = create_connection_with_frames();
+        (conn, channels, internal_rpc)
+    }
+
+    fn create_connection_with_frames() -> (Connection, Channels, InternalRPCHandle, Frames) {
         let uri = AMQPUri::default();
         let runtime = runtime::default_runtime().unwrap();
         let configuration = Configuration::new(&uri, ConnectionProperties::default());
@@ -430,7 +435,100 @@ mod tests {
         );
         let conn = Connection::new(configuration, status, internal_rpc.handle(), events);
         conn.status.set_state(ConnectionState::Connected);
-        (conn, channels, internal_rpc.handle())
+        (conn, channels, internal_rpc.handle(), frames)
+    }
+
+    #[test]
+    fn clear_connection_steps_rejects_all_handshake_stages() {
+        let frames = Frames::default();
+        let error: Error = ErrorKind::MissingHeartbeatError.into();
+        let mut promises = Vec::new();
+        for stage in 0..3 {
+            let (conn, _, _) = create_connection();
+            let (promise, resolver) = Promise::new("handshake cleanup");
+            let auth_provider = conn.configuration.auth_provider.clone();
+            let step = match stage {
+                0 => ConnectionStep::ProtocolHeader(resolver.clone(), conn),
+                1 => ConnectionStep::StartOk(resolver.clone(), conn, auth_provider),
+                _ => ConnectionStep::SecureOk(resolver.clone(), conn, auth_provider),
+            };
+            frames.push(
+                0,
+                AMQPFrame::ProtocolHeader(ProtocolVersion::amqp_0_9_1()),
+                Box::new(resolver.clone()),
+                Some(ExpectedReply(
+                    Reply::ConnectionStep(step),
+                    Box::new(resolver),
+                )),
+                None,
+            );
+            promises.push(promise);
+        }
+        let (other_promise, other_resolver) = Promise::new("unrelated reply");
+        frames.push(
+            0,
+            AMQPFrame::Heartbeat,
+            Box::new(other_resolver.clone()),
+            Some(ExpectedReply(
+                Reply::BasicCancelOk(other_resolver.clone()),
+                Box::new(other_resolver),
+            )),
+            None,
+        );
+
+        frames.clear_connection_steps(&error);
+        for promise in promises {
+            assert!(matches!(
+                promise.try_wait().unwrap().unwrap_err().kind(),
+                ErrorKind::MissingHeartbeatError
+            ));
+        }
+        assert!(frames.connection_resolver(0).is_none());
+        assert!(other_promise.try_wait().is_none());
+        assert_eq!(frames.take_expected_replies(0).unwrap().len(), 1);
+        // Clearing an empty queue is safe, including repeated cleanup.
+        frames.clear_connection_steps(&error);
+        frames.clear_connection_steps(&error);
+    }
+
+    #[test]
+    fn recovery_rejects_pending_connection_handshake() {
+        use std::{
+            future::Future,
+            sync::atomic::{AtomicBool, Ordering},
+            task::{Context, Wake, Waker},
+        };
+
+        struct WakeFlag(AtomicBool);
+        impl Wake for WakeFlag {
+            fn wake(self: Arc<Self>) {
+                self.0.store(true, Ordering::SeqCst);
+            }
+        }
+
+        let (conn, channels, _, frames) = create_connection_with_frames();
+        let status = conn.status.clone();
+        let mut connecting = Box::pin(conn.start(channels.channel0()));
+        let wake = Arc::new(WakeFlag(AtomicBool::new(false)));
+        let waker = Waker::from(wake.clone());
+        let mut cx = Context::from_waker(&waker);
+        assert!(connecting.as_mut().poll(&mut cx).is_pending());
+        // The header has left the outbound queue: only the expected reply can
+        // reject the handshake now, not drop_frames_for_channel during recovery.
+        drop(frames.pop(true).unwrap());
+
+        let error: Error = ErrorKind::MissingHeartbeatError.into();
+        channels.init_connection_recovery(error.clone());
+
+        assert!(wake.0.load(Ordering::SeqCst));
+        assert!(status.reconnecting());
+        match connecting.as_mut().poll(&mut cx) {
+            std::task::Poll::Ready(Err(actual)) => {
+                assert!(matches!(actual.kind(), ErrorKind::MissingHeartbeatError));
+            }
+            other => panic!("expected the handshake to fail, got {other:?}"),
+        }
+        assert!(frames.connection_resolver(0).is_none());
     }
 
     #[test]

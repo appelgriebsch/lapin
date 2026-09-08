@@ -82,13 +82,11 @@ impl Frames {
         resolver.map(|(resolver, _connection)| resolver)
     }
 
-    pub(crate) fn clear_connection_steps(&self, error: Option<&Error>) {
+    pub(crate) fn clear_connection_steps(&self, error: &Error) {
         // Each call to connection_resolver() removes one step from expected_replies[0],
         // so this loop always terminates.
         while let Some(resolver) = self.connection_resolver(0) {
-            if let Some(err) = error {
-                resolver.reject(err.clone());
-            }
+            resolver.reject(error.clone());
         }
     }
 

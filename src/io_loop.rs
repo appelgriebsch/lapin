@@ -219,7 +219,7 @@ impl<
                     let mut stream = self.runtime.block_on(connect).inspect_err(|err| {
                         trace!("Poison connection attempt");
                         self.connection_status.poison(err.clone());
-                        self.frames.clear_connection_steps(Some(err));
+                        self.frames.clear_connection_steps(err);
                     })?;
                     self.half_closed = false;
                     let mut res = Ok(());

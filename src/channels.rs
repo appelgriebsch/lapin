@@ -242,7 +242,7 @@ impl Channels {
     pub(crate) fn init_connection_recovery(&self, error: Error) -> Error {
         trace!("init connection recovery");
         self.connection_status.set_reconnecting();
-        self.frames.clear_connection_steps(None);
+        self.frames.clear_connection_steps(&error);
         let error = self
             .read()
             .channels
