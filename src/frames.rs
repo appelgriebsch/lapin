@@ -7,7 +7,7 @@ use crate::{
     types::{ChannelId, FrameSize},
 };
 use amq_protocol::{
-    frame::AMQPFrame,
+    frame::{AMQPFrame, ProtocolVersion},
     protocol::{AMQPClass, basic::AMQPMethod},
 };
 use std::{
@@ -88,6 +88,35 @@ impl Frames {
         while let Some(resolver) = self.connection_resolver(0) {
             resolver.reject(error.clone());
         }
+    }
+
+    pub(crate) fn retry_connection_header(&self) -> bool {
+        let mut inner = self.lock_inner();
+        let resolver = inner.expected_replies.get(&0).and_then(|replies| {
+            replies.iter().find_map(|reply| match &reply.0 {
+                Reply::ConnectionStep(ConnectionStep::ProtocolHeader(resolver, _)) => {
+                    Some(resolver.clone())
+                }
+                _ => None,
+            })
+        });
+        let Some(resolver) = resolver else {
+            return false;
+        };
+
+        // Keep the expected reply and its original connection promise. The old
+        // header may still be queued or partially written on the previous socket.
+        inner
+            .frames
+            .retain(|frame| !matches!(frame.frame, AMQPFrame::ProtocolHeader(_)));
+        inner
+            .retry_frames
+            .retain(|frame| !matches!(frame.frame, AMQPFrame::ProtocolHeader(_)));
+        inner.retry_frames.push_front(FrameEntry::new(
+            AMQPFrame::ProtocolHeader(ProtocolVersion::amqp_0_9_1()),
+            FrameSending::new(Some(Box::new(resolver)), None),
+        ));
+        true
     }
 
     pub(crate) fn find_expected_reply<P: FnMut(&ExpectedReply) -> bool>(

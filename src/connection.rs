@@ -492,6 +492,34 @@ mod tests {
     }
 
     #[test]
+    fn retry_connection_header_preserves_waiter_and_replaces_queued_header() {
+        use std::{future::Future, task::Context};
+
+        let (conn, channels, _, frames) = create_connection_with_frames();
+        let mut connecting = Box::pin(conn.start(channels.channel0()));
+        let mut cx = Context::from_waker(std::task::Waker::noop());
+        assert!(connecting.as_mut().poll(&mut cx).is_pending());
+
+        // Retrying before the header is sent must not duplicate it, even when
+        // the previous attempt already put it in the retry queue.
+        assert!(frames.retry_connection_header());
+        assert!(frames.retry_connection_header());
+        assert!(matches!(
+            *frames.pop(true).unwrap(),
+            AMQPFrame::ProtocolHeader(_)
+        ));
+        assert!(frames.pop(true).is_none());
+        assert!(connecting.as_mut().poll(&mut cx).is_pending());
+
+        frames.clear_connection_steps(&ErrorKind::MissingHeartbeatError.into());
+        assert!(matches!(
+            connecting.as_mut().poll(&mut cx),
+            std::task::Poll::Ready(Err(_))
+        ));
+        assert!(!frames.retry_connection_header());
+    }
+
+    #[test]
     fn recovery_rejects_pending_connection_handshake() {
         use std::{
             future::Future,

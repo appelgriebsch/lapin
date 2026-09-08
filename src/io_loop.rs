@@ -238,6 +238,20 @@ impl<
                     let reconnect = self.reconnecting();
 
                     trace!(status=?self.status, connection_status=?self.connection_status.state(), "io_loop exiting for {}", if reconnect { "reconnection" } else if connecting { "connection" } else { "shutdown" });
+                    if self.first_connection && connecting && self.half_closed && res.is_ok() {
+                        let error = Error::from(io::Error::from(io::ErrorKind::ConnectionAborted));
+                        if self.frames.retry_connection_header() {
+                            // Before Connection.Start, retry the protocol header with
+                            // the same promise, including if it was only partly sent.
+                            res = Err(error);
+                        } else {
+                            // Later handshake stages may own asynchronous auth work;
+                            // do not carry that exchange onto a fresh TCP connection.
+                            self.channels.set_connection_error(error.clone());
+                            self.clear_serialized_frames(error.clone());
+                            break (stream, Err(error));
+                        }
+                    }
                     self.clear_serialized_frames(self.frames.poison().or_else(|| res.clone().err()).unwrap_or(
                         ErrorKind::InvalidConnectionState(ConnectionState::Closed).into(),
                     ));
@@ -250,7 +264,11 @@ impl<
                         Some(throttle) => throttle,
                         None => {
                             error!("Exponential backoff attempts exhausted, aborting recovery");
-                            break (stream, res);
+                            let error = res.err().unwrap_or_else(|| {
+                                io::Error::from(io::ErrorKind::ConnectionAborted).into()
+                            });
+                            self.channels.set_connection_error(error.clone());
+                            break (stream, Err(error));
                         }
                     };
                     debug!("Throttling {:?} before reconnection to avoid flooding", throttle);
