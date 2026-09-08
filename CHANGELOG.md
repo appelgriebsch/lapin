@@ -1,3 +1,9 @@
+### 4.11.0 (2026-09-08)
+
+#### Bug Fixes
+
+* Properly retry initial connection when recover is enabled
+
 ### 4.10.0 (2026-05-24)
 
 #### Features
